@@ -1,7 +1,7 @@
-from agenttrace import AgentTrace
-from agenttrace.demo import run_demo
+from tracefi import TraceFi
+from tracefi.demo import run_demo
 
 if __name__ == "__main__":
-    with AgentTrace() as trace:
+    with TraceFi() as trace:
         for trace_id in run_demo(trace):
             print(trace_id)

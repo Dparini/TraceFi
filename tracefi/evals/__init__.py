@@ -1,10 +1,10 @@
 """Offline scenario runner and comparable regression metrics."""
 import json
 from pathlib import Path
-from agenttrace.analysis import check_policy
-from agenttrace.hashing import snapshot, state_hash
-from agenttrace.models.deterministic import finite_number
-from agenttrace.models import observed_decision
+from tracefi.analysis import check_policy
+from tracefi.hashing import snapshot, state_hash
+from tracefi.models.deterministic import finite_number
+from tracefi.models import observed_decision
 
 
 def load_scenarios(directory):
@@ -64,7 +64,7 @@ def compare(baseline, candidate, scenarios):
 
 def run_scenarios(collector, adapter, scenarios):
     """Capture a complete synthetic lifecycle, with explicit injected test faults."""
-    from agenttrace.models import decision_state
+    from tracefi.models import decision_state
     ids = []
     for scenario in scenarios:
         state = scenario["state"]

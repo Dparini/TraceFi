@@ -3,20 +3,20 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from agenttrace import AgentTrace
-from agenttrace.storage import SQLiteStorage
-from agenttrace.analysis import analyze, diff, replay
-from agenttrace.models import load_adapter
-from agenttrace.counterfactual import counterfactual, boundary, why_change
-from agenttrace.evals import compare, load_scenarios
-from agenttrace.cli.render import (export_html, postmortem, replay_report, diff_report,
+from tracefi import TraceFi
+from tracefi.storage import SQLiteStorage
+from tracefi.analysis import analyze, diff, replay
+from tracefi.models import load_adapter
+from tracefi.counterfactual import counterfactual, boundary, why_change
+from tracefi.evals import compare, load_scenarios
+from tracefi.cli.render import (export_html, postmortem, replay_report, diff_report,
                                    why_change_report, regression_report, counterfactual_report)
 
 
 def parser():
-    root = argparse.ArgumentParser(prog="agenttrace", description="Observe → reproduce → compare → diagnose")
-    root.add_argument("--db", default=".agenttrace/traces.sqlite3", help="Local SQLite path")
-    root.add_argument("--version", action="version", version="AgentTrace 0.1.0")
+    root = argparse.ArgumentParser(prog="tracefi", description="Financial decision provenance → failure attribution → counterfactual debugging")
+    root.add_argument("--db", default=".tracefi/traces.sqlite3", help="Local SQLite path")
+    root.add_argument("--version", action="version", version="TraceFi 0.1.0")
     commands = root.add_subparsers(dest="command", required=True)
     listing = commands.add_parser("list", help="List recent traces")
     listing.add_argument("--limit", type=int, default=50)
@@ -66,10 +66,10 @@ def main(argv=None):
     args = parser().parse_args(argv)
     try:
         if args.command == "demo":
-            from agenttrace.demo import run_demo
-            with AgentTrace(db=args.db) as collector:
+            from tracefi.demo import run_demo
+            with TraceFi(db=args.db) as collector:
                 ids = run_demo(collector)
-                print("AGENTTRACE DEMO · offline synthetic decisions")
+                print("TRACEFI DEMO · offline synthetic decisions")
                 for trace_id in ids:
                     trace = collector.storage.get(trace_id)
                     print(trace_id, trace["proposal"]["action"], trace["proposal"]["amount"], trace["status"].upper())
@@ -77,8 +77,8 @@ def main(argv=None):
                 print("\n" + why_change_report(why_change(collector.storage.get(ids[0]), collector.storage.get(ids[1]), load_adapter("deterministic"))))
             return 0
         if args.command == "run":
-            from agenttrace.evals import run_scenarios
-            with AgentTrace(db=args.db) as collector:
+            from tracefi.evals import run_scenarios
+            with TraceFi(db=args.db) as collector:
                 ids = run_scenarios(collector, load_adapter(args.adapter), load_scenarios(args.dataset))
                 emit({"traces": ids, "synthetic": True})
             return 0
@@ -87,7 +87,7 @@ def main(argv=None):
             emit(report) if args.json else print(regression_report(report))
             return 1 if args.fail_on_regression and report["regressions"] else 0
         if args.command == "serve":
-            from agenttrace.dashboard import serve
+            from tracefi.dashboard import serve
             serve(args.db, args.port)
             return 0
         storage = SQLiteStorage(args.db)
@@ -134,7 +134,7 @@ def main(argv=None):
         return 0
     except (ValueError, TypeError, KeyError, OSError, ImportError) as exc:
         # Never echo adapter/tool exception messages that may contain credentials.
-        print(f"agenttrace: {type(exc).__name__}: operation failed; check inputs, adapter and trace integrity.", file=sys.stderr)
+        print(f"tracefi: {type(exc).__name__}: operation failed; check inputs, adapter and trace integrity.", file=sys.stderr)
         return 2
 
 

@@ -1,10 +1,10 @@
-from agenttrace.security import Redactor, Secret
-from agenttrace.storage import SQLiteStorage
-from agenttrace.tracing import DecisionTrace
+from tracefi.security import Redactor, Secret
+from tracefi.storage import SQLiteStorage
+from tracefi.tracing import DecisionTrace
 
 
-class AgentTrace:
-    def __init__(self, db=".agenttrace/traces.sqlite3", redact=(), storage=None):
+class TraceFi:
+    def __init__(self, db=".tracefi/traces.sqlite3", redact=(), storage=None):
         self.redactor = Redactor(redact)
         self.storage = storage if storage is not None else SQLiteStorage(db)
 

@@ -1,8 +1,8 @@
 FROM python:3.12-slim
-WORKDIR /opt/agenttrace
+WORKDIR /opt/tracefi
 COPY pyproject.toml README.md LICENSE ./
-COPY agenttrace ./agenttrace
+COPY tracefi ./tracefi
 RUN pip install --no-cache-dir .
 WORKDIR /workspace
-ENTRYPOINT ["agenttrace"]
+ENTRYPOINT ["tracefi"]
 CMD ["demo"]

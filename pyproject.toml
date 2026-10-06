@@ -3,21 +3,21 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agenttrace"
+name = "tracefi"
 version = "0.1.0"
-description = "Local observability and debugging for autonomous financial agents"
+description = "Decision provenance, failure attribution and counterfactual debugging for financial agents"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-authors = [{name = "AgentTrace contributors"}]
+authors = [{name = "TraceFi contributors"}]
 classifiers = ["Programming Language :: Python :: 3", "Operating System :: OS Independent"]
 dependencies = []
 
 [project.scripts]
-agenttrace = "agenttrace.cli:main"
+tracefi = "tracefi.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["agenttrace*"]
+include = ["tracefi*"]
 
 [tool.setuptools.package-data]
-agenttrace = ["datasets/**/*.json", "web/*.html", "web/assets/*"]
+tracefi = ["datasets/**/*.json", "web/*.html", "web/assets/*"]

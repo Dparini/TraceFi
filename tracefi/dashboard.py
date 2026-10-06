@@ -3,10 +3,15 @@ import json
 import mimetypes
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
-from agenttrace.storage import SQLiteStorage
-from agenttrace.analysis import analyze
-from agenttrace.cli.render import export_html
+from urllib.parse import parse_qs, unquote, urlsplit
+from tracefi.storage import SQLiteStorage
+from tracefi.analysis import analyze
+from tracefi.cli.render import export_html
+from tracefi.counterfactual import counterfactual
+from tracefi.models import load_adapter
+from tracefi.models.deterministic import finite_number
+
+COUNTERFACTUAL_FEATURES = {"context.apy", "context.liquidity", "context.price", "context.oracle_age_seconds"}
 
 
 def serve(db, port=8765):
@@ -53,11 +58,31 @@ def serve(db, port=8765):
                         body = json.dumps(rows).encode()
                     elif path.startswith("/api/traces/"):
                         parts = path.split("/")
-                        if len(parts) not in (4, 5) or len(parts) == 5 and parts[4] != "export":
+                        if len(parts) not in (4, 5) or len(parts) == 5 and parts[4] not in ("export", "counterfactual"):
                             raise KeyError("Unknown route")
                         trace = storage.get(parts[3])
-                        if len(parts) == 5:
+                        if len(parts) == 5 and parts[4] == "export":
                             self.send(200, export_html(trace).encode(), "text/html")
+                            return
+                        if len(parts) == 5 and parts[4] == "counterfactual":
+                            try:
+                                params = parse_qs(urlsplit(self.path).query)
+                                if set(params) != {"adapter", "feature", "value"} or any(len(values) != 1 for values in params.values()):
+                                    raise ValueError("Invalid experiment parameters")
+                                if params["adapter"][0] != "deterministic":
+                                    raise ValueError("Unsupported adapter")
+                                feature = params["feature"][0]
+                                value = json.loads(params["value"][0])
+                                if feature not in COUNTERFACTUAL_FEATURES or not finite_number(value):
+                                    raise ValueError("Invalid financial input")
+                                if feature.split(".")[1] not in trace["context"]:
+                                    raise ValueError("Input was not recorded")
+                                result = counterfactual(trace, load_adapter("deterministic"), feature, value)
+                                result["limitations"] = "One-variable experiment on the synthetic deterministic adapter. No transaction, policy recheck or financial outcome is simulated."
+                            except (ValueError, TypeError):
+                                self.send(422, b'{"error":"Experiment unavailable. Select a recorded numeric input and an adapter that reproduces the original decision."}')
+                                return
+                            self.send(200, json.dumps(result).encode())
                             return
                         body = json.dumps({"trace": trace, "analysis": analyze(trace)}).encode()
                     else:
@@ -77,7 +102,7 @@ def serve(db, port=8765):
                     storage.close()
 
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"AgentTrace dashboard: http://127.0.0.1:{port} · read only", flush=True)
+    print(f"TraceFi dashboard: http://127.0.0.1:{port} · read only", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

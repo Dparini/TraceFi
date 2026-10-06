@@ -1,7 +1,7 @@
 """Repeatable synthetic capture: no external service or transaction."""
-from agenttrace.models.deterministic import DeterministicAgent
-from agenttrace.models import decision_state
-from agenttrace.analysis import check_policy
+from tracefi.models.deterministic import DeterministicAgent
+from tracefi.models import decision_state
+from tracefi.analysis import check_policy
 
 
 def run_demo(collector):

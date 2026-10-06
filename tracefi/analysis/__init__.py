@@ -1,8 +1,8 @@
 """Deterministic evidence-based findings. Findings are not causal proof."""
 from enum import Enum
-from agenttrace.hashing import state_hash
-from agenttrace.models import decision_state, observed_decision
-from agenttrace.models.deterministic import finite_number
+from tracefi.hashing import state_hash
+from tracefi.models import decision_state, observed_decision
+from tracefi.models.deterministic import finite_number
 
 
 class FailureType(str, Enum):

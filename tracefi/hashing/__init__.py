@@ -7,7 +7,8 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from collections.abc import Mapping
 
-CANONICAL_VERSION = "agenttrace-json-v1"
+CANONICAL_VERSION = "tracefi-json-v1"
+SUPPORTED_CANONICAL_VERSIONS = {CANONICAL_VERSION, "agenttrace-json-v1"}
 _TIMESTAMP = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$")
 
 

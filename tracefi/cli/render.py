@@ -1,11 +1,11 @@
 import html
 import json
-from agenttrace.analysis import analyze
+from tracefi.analysis import analyze
 
 
 def postmortem(trace):
     report = analyze(trace)
-    lines = ["AGENTTRACE POST-MORTEM", "", "Trace: " + trace["trace_id"],
+    lines = ["TRACEFI POST-MORTEM", "", "Trace: " + trace["trace_id"],
              "Agent: " + trace["agent"]["name"] + "@" + trace["agent"]["version"],
              "Decision: " + json.dumps(report["decision"], ensure_ascii=False),
              "Outcome: " + json.dumps(report["outcome"], ensure_ascii=False), ""]
@@ -28,11 +28,11 @@ def export_html(trace):
                    for span in trace["spans"])
     payload = html.escape(json.dumps(trace, indent=2, ensure_ascii=False))
     return '''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>AgentTrace post-mortem</title><style>
+<title>TraceFi post-mortem</title><style>
 body{font:16px system-ui;background:#0b1020;color:#e2e8f0;max-width:1100px;margin:40px auto;padding:24px}
 h1{color:#67e8f9}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#141e33;padding:24px;border-radius:12px}
 table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:12px;border-bottom:1px solid #334155}
-</style><h1>AgentTrace</h1><p>Local decision observability · synthetic results are not financial validation.</p>
+</style><h1>TraceFi</h1><p>Financial decision provenance · synthetic results are not financial validation.</p>
 <pre>''' + html.escape(postmortem(trace)) + '''</pre><h2>Timeline</h2><table><thead><tr><th>Start UTC</th><th>Span</th><th>Type</th><th>Status</th><th>Duration ns</th></tr></thead><tbody>''' + rows + '''</tbody></table><details><summary>Recorded snapshot</summary><pre>''' + payload + '''</pre></details></html>'''
 
 
@@ -46,7 +46,7 @@ def decision_text(proposal):
 
 
 def replay_report(report):
-    return "\n".join(("AGENTTRACE REPLAY", "Trace: " + report["trace_id"],
+    return "\n".join(("TRACEFI REPLAY", "Trace: " + report["trace_id"],
                       "Agent: " + report["agent"]["name"] + "@" + report["agent"]["version"], "",
                       "Original: " + decision_text(report["original"]), "Replayed: " + decision_text(report["replayed"]), "",
                       "✓ MATCHING DECISION" if report["equal"] else "⚠ DECISION DIVERGENCE",
@@ -54,7 +54,7 @@ def replay_report(report):
 
 
 def diff_report(report):
-    lines = ["AGENTTRACE DECISION DIFF", "A: " + report["trace_a"], "B: " + report["trace_b"], ""]
+    lines = ["TRACEFI DECISION DIFF", "A: " + report["trace_a"], "B: " + report["trace_b"], ""]
     for label, field in (("Changed inputs", "changed_inputs"), ("Decision changes", "decision_changes"), ("Policy changes", "policy_changes")):
         lines.append(label.upper())
         for change in report[field]:
@@ -68,7 +68,7 @@ def diff_report(report):
 
 
 def why_change_report(report):
-    lines = ["AGENTTRACE WHY CHANGE", "A: " + report["trace_a"], "B: " + report["trace_b"], "", "COUNTERFACTUAL TESTS"]
+    lines = ["TRACEFI WHY CHANGE", "A: " + report["trace_a"], "B: " + report["trace_b"], "", "COUNTERFACTUAL TESTS"]
     for experiment in report["experiments"]:
         lines.append(f"  {experiment['path']}: {experiment['before']} → {experiment['after']}")
         lines.append("    " + decision_text(experiment["decision"]) + (" · reproduces target" if experiment["matches_target"] else ""))
@@ -96,7 +96,7 @@ def counterfactual_report(report):
     if "boundary_found" in report:
         return "\n".join(("DECISION BOUNDARY " + ("BRACKET FOUND" if report["boundary_found"] else "NOT FOUND AT ENDPOINTS"),
                           "Feature: " + report["feature"], "Interval: " + str(report["interval"]), report["limitations"]))
-    return "\n".join(("AGENTTRACE COUNTERFACTUAL", "Feature: " + report["feature"],
+    return "\n".join(("TRACEFI COUNTERFACTUAL", "Feature: " + report["feature"],
                       "Value: " + json.dumps(report["value"], ensure_ascii=False),
                       "Original: " + decision_text(report["original"]),
                       "Modified: " + decision_text(report["counterfactual"]),

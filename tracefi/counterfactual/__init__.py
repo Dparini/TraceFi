@@ -1,9 +1,9 @@
 """One-variable experiments; no invented historical execution or PnL."""
 from copy import deepcopy
-from agenttrace.analysis import changed_paths, replay
-from agenttrace.hashing import state_hash
-from agenttrace.models import decision_state, observed_decision
-from agenttrace.models.deterministic import finite_number
+from tracefi.analysis import changed_paths, replay
+from tracefi.hashing import state_hash
+from tracefi.models import decision_state, observed_decision
+from tracefi.models.deterministic import finite_number
 
 
 def action_signature(proposal):

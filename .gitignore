@@ -1,5 +1,5 @@
 .venv/
-.agenttrace/
+.tracefi/
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -8,3 +8,4 @@ dist/
 .pytest_cache/
 node_modules/
 .DS_Store
+.agenttrace/

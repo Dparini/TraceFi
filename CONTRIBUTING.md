@@ -1,6 +1,6 @@
 # Contributing
 
-AgentTrace focuses on observe → reproduce → compare → diagnose. Contributions
+TraceFi focuses on observe → reproduce → compare → diagnose. Contributions
 must explain how they improve that workflow. Do not introduce real-money trading,
 mandatory cloud services or internal chain-of-thought capture.
 

@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from datetime import datetime, timezone
 from time import perf_counter_ns
 from uuid import uuid4
-from agenttrace.hashing import CANONICAL_VERSION, snapshot, state_hash
+from tracefi.hashing import CANONICAL_VERSION, snapshot, state_hash
 
 
 def now():
@@ -52,7 +52,7 @@ class DecisionTrace:
         if not isinstance(agent, str) or not isinstance(version, str):
             raise TypeError("Agent and version must be strings")
         self.owner = owner
-        self.parent = ContextVar("agenttrace_parent_" + uuid4().hex, default=None)
+        self.parent = ContextVar("tracefi_parent_" + uuid4().hex, default=None)
         self.active = False
         self.finished = False
         self.record = {

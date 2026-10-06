@@ -2,7 +2,7 @@
 
 ## Scope and trust boundaries
 
-AgentTrace collects local traces from caller instrumentation. The SDK and chosen
+TraceFi collects local traces from caller instrumentation. The SDK and chosen
 adapter code are trusted. Market feeds, retrieval records, tool outputs, agent
 proposals, scenario files and browser-visible payloads are untrusted data. Local
 filesystem owners and other processes with database access are outside the
@@ -25,7 +25,7 @@ financial correctness. Collection does not enforce the application's policy.
 | Incomplete context | Misleading reproduction or missed failure | Record configurations, portfolio and retrieval contract; expose missing stages; refuse exact replay of redacted inputs | Instrumentation can omit hidden dependencies, code revisions, tool state or relevant evidence; no automatic completeness proof |
 | Poisoned datasets | Biased regression conclusions, denial of service | Synthetic checked-in fixtures, deterministic CI, compare both agents on identical scenarios; no trace-driven code loading | User datasets can be misleading, large or deeply nested; JSON input size limits and provenance signatures are not implemented |
 | False failure attribution | Wrong root-cause claims or misplaced confidence | Separate observed conditions from likely interpretations; multiple findings; unknown when evidence is missing; losses alone are insufficient | Rule coverage is incomplete; stale data may be irrelevant; sufficiency experiments cannot establish global causal truth |
-| Local dashboard exposure | Another site or process reads financial traces | Bind 127.0.0.1; Host and Origin allowlists; no CORS; read-only GET API; CSP and no-store headers | Local processes, extensions and same-origin compromise can read data; dashboard has no authentication and must not be reverse-proxied publicly |
+| Local dashboard exposure | Another site or process reads financial traces | Bind 127.0.0.1; Host and Origin allowlists; no CORS; read-only GET API and experiments restricted to finite recorded financial inputs and the built-in deterministic adapter; CSP and no-store headers | Local processes, extensions and same-origin compromise can read data; dashboard has no authentication and must not be reverse-proxied publicly |
 | Adapter code execution | Arbitrary local Python behavior | Adapter selected explicitly on CLI; never derived from trace metadata | `module:factory` executes trusted-by-user code; dependencies and Ollama server are separate trust boundaries |
 | Process termination or storage failure | In-flight traces lost or application disrupted | Atomic final writes, explicit persistence errors | No streaming journal or retry queue; SDK can block on storage; callers must design failure handling |
 

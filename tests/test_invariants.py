@@ -4,15 +4,15 @@ import unittest
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
-from agenttrace import AgentTrace, FailureType
-from agenttrace.analysis import analyze, replay, check_policy, diff
-from agenttrace.counterfactual import counterfactual, boundary, why_change
-from agenttrace.demo import run_demo
-from agenttrace.evals import compare, load_scenarios
-from agenttrace.hashing import canonicalize, state_hash
-from agenttrace.models import decision_state, load_adapter
-from agenttrace.storage import IntegrityError
-from agenttrace.cli.render import export_html
+from tracefi import TraceFi, FailureType
+from tracefi.analysis import analyze, replay, check_policy, diff
+from tracefi.counterfactual import counterfactual, boundary, why_change
+from tracefi.demo import run_demo
+from tracefi.evals import compare, load_scenarios
+from tracefi.hashing import canonicalize, state_hash
+from tracefi.models import decision_state, load_adapter
+from tracefi.storage import IntegrityError
+from tracefi.cli.render import export_html
 
 
 class HashingTests(unittest.TestCase):
@@ -44,7 +44,7 @@ class TraceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.path = Path(self.temp.name) / "traces.sqlite3"
-        self.collector = AgentTrace(db=self.path)
+        self.collector = TraceFi(db=self.path)
 
     def tearDown(self):
         self.collector.close()
@@ -111,6 +111,17 @@ class TraceTests(unittest.TestCase):
         self.collector.storage.connection.execute("UPDATE artifacts SET payload='{}' WHERE trace_id=?", (trace["trace_id"],))
         with self.assertRaises(IntegrityError):
             self.collector.storage.get(trace["trace_id"])
+
+    def test_original_canonical_format_remains_readable(self):
+        with self.collector.decision("legacy-format") as t:
+            t.record["canonical_version"] = "agenttrace-json-v1"
+            t.capture_context({"liquidity": 21000000})
+        original = self.collector.storage.connection.execute(
+            "SELECT payload,hash FROM traces WHERE id=?", (t.trace_id,)).fetchone()
+        trace = self.collector.storage.get(t.trace_id)
+        self.assertEqual(trace["canonical_version"], "agenttrace-json-v1")
+        self.assertEqual(original, self.collector.storage.connection.execute(
+            "SELECT payload,hash FROM traces WHERE id=?", (t.trace_id,)).fetchone())
 
     def test_span_tampering(self):
         trace = self.capture()
@@ -184,7 +195,7 @@ class TraceTests(unittest.TestCase):
                 t.capture_decision({"action": "SUPPLY", "amount": 1})
 
     def test_scenario_fault_attribution(self):
-        from agenttrace.evals import run_scenarios
+        from tracefi.evals import run_scenarios
         scenarios = load_scenarios(Path(__file__).parents[1] / "scenarios")
         ids = run_scenarios(self.collector, load_adapter("deterministic"), scenarios)
         reports = {scenario["id"]: analyze(self.collector.storage.get(trace_id))
@@ -210,7 +221,7 @@ class TraceTests(unittest.TestCase):
 
     def test_packaged_scenarios_match_repository(self):
         source = Path(__file__).parents[1] / "scenarios"
-        packaged = Path(__file__).parents[1] / "agenttrace" / "datasets"
+        packaged = Path(__file__).parents[1] / "tracefi" / "datasets"
         self.assertEqual({str(p.relative_to(source)): p.read_bytes() for p in source.rglob("*.json")},
                          {str(p.relative_to(packaged)): p.read_bytes() for p in packaged.rglob("*.json")})
 

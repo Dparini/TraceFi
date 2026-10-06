@@ -1,12 +1,20 @@
-# AgentTrace
+# TraceFi
 
-**Observability and debugging for autonomous financial agents.**
+**Decision provenance, failure attribution and counterfactual debugging for financial agents.**
 
-Understand not only what an agent did, but why, with what information,
-and where failures occurred.
+A financial agent supplied $50,000 USDC to a protocol. Days later, the position
+lost $2,341. PnL records the loss. TraceFi reconstructs the decision:
 
-AgentTrace is an open-source observability and debugging framework that makes
-autonomous financial-agent decisions reproducible, auditable and diagnosable.
+- Which market and portfolio state did the agent see?
+- What retrieved evidence informed the proposed action?
+- Did the risk policy approve it, and what did simulation predict?
+- Does the evidence point to a data, retrieval, reasoning, policy, simulation
+  or execution failure—or a negative market outcome?
+- **What input would have changed the financial decision?**
+
+TraceFi preserves that provenance, identifies failure evidence and reruns the
+recorded state with one input changed at a time. It makes autonomous
+financial-agent decisions reproducible, auditable and diagnosable.
 
 Local SQLite storage. Offline deterministic demos. No required LLM, subscription,
 financial API or real capital.
@@ -22,16 +30,16 @@ with the same name.
 python3 -m venv .venv
 source .venv/bin/activate
 .venv/bin/python -m pip install -e .
-.venv/bin/agenttrace demo
-.venv/bin/agenttrace analyze latest
-.venv/bin/agenttrace serve
+.venv/bin/tracefi demo
+.venv/bin/tracefi analyze latest
+.venv/bin/tracefi serve
 # Open http://127.0.0.1:8765
 ```
 
 ```python
-from agenttrace import AgentTrace
+from tracefi import TraceFi
 
-with AgentTrace(redact=["credential"]) as trace:
+with TraceFi(redact=["credential"]) as trace:
     with trace.decision(agent="yield-agent", version="1.4.2") as t:
         t.capture_context({"apy": 0.067, "liquidity": 21_000_000})
         t.capture_decision({"action": "SUPPLY", "asset": "USDC", "amount": 25_000})
@@ -42,24 +50,44 @@ with AgentTrace(redact=["credential"]) as trace:
 ```
 
 ```text
-Agent → Trace → Data → Retrieval → Decision → Policy
-                                                ↓
-                                           Simulation
-                                                ↓
-                                            Execution
-                                                ↓
-                                            Post-mortem
+FINANCIAL AGENT
+      │
+      ▼
+DECISION PROVENANCE
+      ├── market state
+      ├── portfolio state
+      ├── retrieved evidence
+      ├── proposed action
+      ├── risk policy
+      ├── simulation
+      └── execution
+              │
+              ▼
+       FAILURE ATTRIBUTION
+       data · retrieval · reasoning · policy
+       simulation · execution · market outcome
+              │
+              ▼
+    COUNTERFACTUAL DEBUGGING
+    "What input would have changed the financial decision?"
 ```
 
-## Why AgentTrace?
+## Why TraceFi?
 
-PnL tells you what happened. A trace preserves the inputs, retrieved evidence,
-structured decision factors, policy checks, simulation and execution results
-that help investigate it. A negative outcome does not automatically imply an
-agent error. AgentTrace does not evaluate whether a financial decision was
-objectively right.
+A financial decision depends on market freshness, available liquidity, portfolio
+allocation and risk constraints. A useful investigation connects those inputs
+to the proposed action, the controls it passed and the observed execution.
 
-## Trace Anatomy
+**Provenance** preserves the state and evidence available at decision time.
+**Failure attribution** distinguishes observed inconsistencies from likely
+causes, retaining multiple findings and unknowns. **Counterfactual debugging**
+tests whether a different yield, liquidity level or other recorded input would
+have changed the proposal.
+
+A negative outcome does not automatically imply an agent error. TraceFi does
+not determine whether a financial decision was objectively right.
+
+## Financial Decision Provenance
 
 Each trace has a UUID-based ID, schema and canonicalization versions, UTC wall
 clock timestamps, monotonic durations, redacted snapshots, a proposal and spans.
@@ -95,10 +123,10 @@ See [API and data contract](docs/API.md) for exact payloads and adapter inputs.
 ## Replay
 
 ```bash
-agenttrace list
-agenttrace show latest
-agenttrace replay latest --adapter deterministic
-agenttrace diff TRACE_A TRACE_B
+tracefi list
+tracefi show latest
+tracefi replay latest --adapter deterministic
+tracefi diff TRACE_A TRACE_B
 ```
 
 Replay requires an explicit adapter. It runs on the captured state and compares
@@ -112,11 +140,11 @@ Adapters implement `decide(state)`. Built-ins are `deterministic`, `agent-v1`,
 local adapter. Loading an adapter executes Python code; trace contents cannot
 choose the adapter. Pin agent code, environment and model yourself.
 
-## Failure Analysis
+## Failure Attribution
 
 ```bash
-agenttrace analyze latest
-agenttrace analyze latest --json
+tracefi analyze latest
+tracefi analyze latest --json
 ```
 
 Rules identify stale oracle data, conflicting sources, omitted required evidence,
@@ -135,11 +163,11 @@ likely interpretations, and never infer hidden chain of thought.
 ## Counterfactual Debugging
 
 ```bash
-agenttrace counterfactual latest --adapter deterministic \
+tracefi counterfactual latest --adapter deterministic \
   --feature context.liquidity --value 10000000
-agenttrace counterfactual latest --adapter deterministic \
+tracefi counterfactual latest --adapter deterministic \
   --feature context.liquidity --low 1000000 --high 30000000
-agenttrace why-change TRACE_A TRACE_B --adapter deterministic
+tracefi why-change TRACE_A TRACE_B --adapter deterministic
 ```
 
 Counterfactuals change one input at a time. The chosen adapter must reproduce the
@@ -153,9 +181,9 @@ The engine does not fabricate counterfactual returns.
 ## Regression Testing
 
 ```bash
-agenttrace eval --baseline agent-v1 --candidate agent-v2 --dataset scenarios/
-agenttrace eval --baseline agent-v1 --candidate agent-v2 --fail-on-regression
-agenttrace run --dataset scenarios/ --adapter deterministic
+tracefi eval --baseline agent-v1 --candidate agent-v2 --dataset scenarios/
+tracefi eval --baseline agent-v1 --candidate agent-v2 --fail-on-regression
+tracefi run --dataset scenarios/ --adapter deterministic
 ```
 
 There are 30 synthetic JSON scenarios across normal, market, data, adversarial
@@ -176,13 +204,16 @@ metric deteriorates, rather than declaring the candidate financially worse.
 
 The packaged React dashboard is local and read-only. Explore traces, search and
 filter status, inspect a span timeline, compare evidence to the context, view
-findings and download standalone HTML post-mortems. Every read verifies trace,
+failure attribution and test an alternative financial input in the counterfactual
+tab. The dashboard experiment uses the synthetic deterministic adapter and
+requires it to reproduce the trace. Other agents use explicit CLI adapters.
+Download standalone HTML post-mortems for sharing. Every read verifies trace,
 snapshot, span and artifact hashes. An empty database has an explicit empty state.
 
 ```bash
-agenttrace serve --port 8765
-agenttrace export latest --format json --output trace.json
-agenttrace export latest --format html --output postmortem.html
+tracefi serve --port 8765
+tracefi export latest --format json --output trace.json
+tracefi export latest --format html --output postmortem.html
 ```
 
 To rebuild the dashboard (Node 22+):
@@ -193,12 +224,16 @@ npm ci
 npm run build
 ```
 
+The detail view summarizes recorded APY, protocol liquidity, USDC balance and
+exposure limit alongside the provenance timeline. Missing inputs stay unknown.
+Experiments never send transactions or rewrite the original trace.
+
 Production assets are bundled; the running dashboard needs no CDN or npm service.
 For UI development, run the collector server and `npm run dev` in `dashboard/`.
 
 ## Demo
 
-`agenttrace demo` records $100,000 of synthetic USDC: a $25,000 proposal passes,
+`tracefi demo` records $100,000 of synthetic USDC: a $25,000 proposal passes,
 then higher liquidity triggers an $80,000 proposal blocked by the 35% exposure
 limit. It prints a post-mortem and a one-variable liquidity experiment.
 See the [60–90 second walkthrough](docs/DEMO.md).
@@ -219,7 +254,7 @@ there is no ingestion service, external backend or required container.
 ## Security
 
 ```python
-with AgentTrace(redact=["credential"]) as trace:
+with TraceFi(redact=["credential"]) as trace:
     with trace.decision("example") as t:
         t.capture_context({"private_key": "never-stored", "note": trace.secret("sensitive")})
 ```
@@ -254,8 +289,13 @@ name ownership, release review and an explicit publish step.
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 -m agenttrace demo
+python3 -m tracefi demo
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [ROADMAP.md](docs/ROADMAP.md).
 Licensed under MIT.
+
+The package, SDK and CLI have been renamed to `tracefi`, `TraceFi` and `tracefi`.
+Existing databases remain readable with an explicit `--db` path; their recorded
+canonical identifiers and hashes are preserved. See the architecture compatibility
+notes.

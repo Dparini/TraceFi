@@ -1,11 +1,18 @@
 # Architecture
 
-AgentTrace observes decision processes. The unit of collection is a decision
-trace, not a trade, position, PnL series or hidden LLM reasoning transcript.
+TraceFi reconstructs financial decision provenance, attributes failure evidence,
+and tests what recorded input would have changed a financial proposal. The unit
+of collection is a financial decision trace linking market state, portfolio,
+retrieved evidence, proposed action, risk policy, simulation and execution.
+
+The tracing substrate supports three product capabilities: provenance captures
+what was available, attribution identifies where recorded evidence indicates
+failure, and counterfactual experiments test decision sensitivity. Negative
+market outcomes remain distinct from demonstrated agent failures.
 
 ## Local pipeline
 
-1. `AgentTrace.decision()` creates a single-use trace context.
+1. `TraceFi.decision()` creates a single-use trace context.
 2. Capture methods redact and canonicalize inputs immediately, making independent
    snapshots. Captures append typed spans; custom spans can be nested.
 3. On exit, wall timestamps and monotonic durations are finalized. The collector
@@ -32,7 +39,7 @@ UTC timestamps, monotonic durations, status and timestamped payload events.
 Only outcome-level structured rationale is captured. Raw internal chain of
 thought is outside the contract and must not be logged by callers.
 
-Schema version 1 and canonicalization version `agenttrace-json-v1` are explicit.
+Schema version 1 and canonicalization version `tracefi-json-v1` are explicit.
 The JSON format sorts string object keys, preserves array order and Unicode,
 normalizes equivalent finite numbers and timezone-aware ISO timestamp values to
 UTC microseconds. Naive Python datetime values, non-finite numbers, non-string dictionary
@@ -79,7 +86,10 @@ not a backtest or a source of financial performance estimates.
 
 A built React client is shipped as local static assets. A Python loopback-only
 HTTP server exposes GET routes for verified trace summaries, detail and HTML
-exports. No mutable endpoint, external font, CDN, analytics or remote collector
+exports, plus a single-variable counterfactual calculation on an explicitly
+selected built-in deterministic adapter. The experiment requires reproduction
+and leaves trace storage unchanged; arbitrary Python adapters are never loaded
+through the HTTP API. No mutable endpoint, external font, CDN, analytics or remote collector
 is required. Host/Origin checks reduce cross-site access; local process access
 and an untrusted browser extension remain outside its protection boundary.
 
@@ -87,7 +97,16 @@ and an untrusted browser extension remain outside its protection boundary.
 
 `ModelAdapter.decide(state)` isolates local deterministic and optional Ollama
 models. Trusted `module:factory` adapters can integrate other agents. Storage is
-injected through `AgentTrace(storage=...)`; compatible implementations provide
+injected through `TraceFi(storage=...)`; compatible implementations provide
 `save`, `get`, `list` and `close`. OpenTelemetry mapping can be added without
 changing the decision-state contract. Schema migrations and cryptographic
 signatures need explicit design before a stable V1 contract is declared.
+
+## Rename compatibility
+
+New traces use `tracefi-json-v1`. The reader also accepts the original
+`agenttrace-json-v1` identifier because the canonical byte format is unchanged.
+Existing payloads and hashes are never rewritten during the rename. The default
+DB is now `.tracefi/traces.sqlite3`; use `tracefi --db
+.agenttrace/traces.sqlite3 list` to inspect an existing local database. The
+Python package, SDK class and CLI are now `tracefi`, `TraceFi` and `tracefi`.

@@ -3,7 +3,7 @@ import json
 import os
 import sqlite3
 from pathlib import Path
-from agenttrace.hashing import canonicalize, state_hash
+from tracefi.hashing import SUPPORTED_CANONICAL_VERSIONS, canonicalize, state_hash
 
 
 class IntegrityError(ValueError):
@@ -11,7 +11,7 @@ class IntegrityError(ValueError):
 
 
 class SQLiteStorage:
-    def __init__(self, path=".agenttrace/traces.sqlite3"):
+    def __init__(self, path=".tracefi/traces.sqlite3"):
         self.path = str(path)
         if self.path != ":memory:":
             target = Path(path)
@@ -62,7 +62,7 @@ class SQLiteStorage:
             raise KeyError(f"Trace not found: {trace_id}")
         trace = json.loads(row[0])
         if verify:
-            if trace.get("schema_version") != 1 or trace.get("canonical_version") != "agenttrace-json-v1":
+            if trace.get("schema_version") != 1 or trace.get("canonical_version") not in SUPPORTED_CANONICAL_VERSIONS:
                 raise IntegrityError("Unsupported trace schema or canonicalization version")
             metadata = (trace["agent"]["name"], trace["agent"]["version"], trace["timestamp"], trace["context_hash"], trace["status"])
             if tuple(row[2:]) != metadata:

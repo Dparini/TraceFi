@@ -1,12 +1,12 @@
 # API and payload contract
 
 ```python
-AgentTrace(db=".agenttrace/traces.sqlite3", redact=(), storage=None)
+TraceFi(db=".tracefi/traces.sqlite3", redact=(), storage=None)
 trace.decision(agent, version="unknown", model=None, portfolio=None,
                agent_config=None, policy_config=None)
 ```
 
-`AgentTrace` and decision contexts are context managers. Closing the collector
+`TraceFi` and decision contexts are context managers. Closing the collector
 closes its storage. Capture only JSON-compatible values, finite numbers, `Decimal`
 and timezone-aware `datetime` values. Canonicalization converts Decimal and
 number values to JSON numbers, normalizes timestamp values and copies inputs.
@@ -55,7 +55,7 @@ class MyAdapter:
 
 def make_adapter():
     return MyAdapter()
-# agenttrace replay TRACE_ID --adapter my_module:make_adapter
+# tracefi replay TRACE_ID --adapter my_module:make_adapter
 ```
 
 ## Detector fields
@@ -88,7 +88,7 @@ coverage separately.
 
 0: completed command or matching replay. 1: replay divergence or opt-in eval
 regression failure. 2: input/storage/adapter operation error. Database selection
-is a global flag: `agenttrace --db /path/traces.sqlite3 demo`.
+is a global flag: `tracefi --db /path/traces.sqlite3 demo`.
 
 ## Integrity and extension boundaries
 
@@ -97,3 +97,14 @@ off is an explicit low-level diagnostic escape hatch. Public CLI and dashboard
 never turn it off. SHA-256 is over canonical redacted snapshots, not original
 secret-dependent state. Use the actual trusted adapter and pinned environment;
 the recorded agent version alone cannot identify Python source or model weights.
+
+## Dashboard financial experiments
+
+`GET /api/traces/{id}/counterfactual?adapter=deterministic&feature=context.liquidity&value=10000000`
+returns a one-variable proposal experiment. The adapter must reproduce the
+original recorded proposal. Supported inputs are `context.apy`,
+`context.liquidity`, `context.price` and `context.oracle_age_seconds`; the feature
+must already be recorded and its alternative value must be a finite number.
+The HTTP API accepts only the built-in deterministic adapter. Other models use
+explicit trusted CLI adapters. Invalid or unreproducible experiments return 422.
+No policy, execution, PnL or original trace is changed.

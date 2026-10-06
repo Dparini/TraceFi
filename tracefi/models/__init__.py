@@ -1,8 +1,8 @@
 """Adapters receive the entire recorded decision state, not hidden live inputs."""
 import importlib
 from typing import Protocol, Any
-from agenttrace.hashing import snapshot
-from agenttrace.security import Redactor
+from tracefi.hashing import snapshot
+from tracefi.security import Redactor
 
 
 class ModelAdapter(Protocol):
@@ -15,10 +15,10 @@ def decision_state(trace):
 
 def load_adapter(name):
     if name in ("deterministic", "agent-v1", "agent-v2"):
-        from agenttrace.models.deterministic import DeterministicAgent
+        from tracefi.models.deterministic import DeterministicAgent
         return DeterministicAgent(version="1" if name == "agent-v1" else "2" if name == "agent-v2" else None)
     if name == "ollama":
-        from agenttrace.models.ollama import OllamaAgent
+        from tracefi.models.ollama import OllamaAgent
         return OllamaAgent()
     if ":" not in name:
         raise ValueError("Adapter must be deterministic, agent-v1, agent-v2, ollama or module:factory")

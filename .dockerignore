@@ -1,8 +1,9 @@
 .git
 .venv
-.agenttrace
+.tracefi
 dashboard/node_modules
 __pycache__
 *.egg-info
 build
 dist
+.agenttrace/

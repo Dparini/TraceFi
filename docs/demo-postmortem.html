@@ -1,12 +1,12 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>AgentTrace post-mortem</title><style>
+<title>TraceFi post-mortem</title><style>
 body{font:16px system-ui;background:#0b1020;color:#e2e8f0;max-width:1100px;margin:40px auto;padding:24px}
 h1{color:#67e8f9}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#141e33;padding:24px;border-radius:12px}
 table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:12px;border-bottom:1px solid #334155}
-</style><h1>AgentTrace</h1><p>Local decision observability · synthetic results are not financial validation.</p>
-<pre>AGENTTRACE POST-MORTEM
+</style><h1>TraceFi</h1><p>Financial decision provenance · synthetic results are not financial validation.</p>
+<pre>TRACEFI POST-MORTEM
 
-Trace: tr_99c4772c742541afa0f7db9153154d7b
+Trace: tr_a33f0a78cac042eb8eabd01d91f51740
 Agent: yield-agent@2
 Decision: {&quot;action&quot;: &quot;SUPPLY&quot;, &quot;amount&quot;: 80000, &quot;asset&quot;: &quot;USDC&quot;, &quot;protocol&quot;: &quot;protocol_b&quot;, &quot;rationale&quot;: {&quot;factors&quot;: [&quot;Yield meets threshold&quot;, &quot;Sufficient reported liquidity&quot;]}}
 Outcome: {}
@@ -22,7 +22,7 @@ OUTCOME: not recorded
 LIKELY FAILURE CLASS: RETRIEVAL_FAILURE
 [likely] RETRIEVAL_FAILURE: Available required features omitted from agent context: liquidity_trend_24h
 
-Rule matches identify evidence and inconsistencies, not financial correctness or causal proof.</pre><h2>Timeline</h2><table><thead><tr><th>Start UTC</th><th>Span</th><th>Type</th><th>Status</th><th>Duration ns</th></tr></thead><tbody><tr><td>2026-10-06T12:24:39.415119Z</td><td>data</td><td>data</td><td>success</td><td>18750</td></tr><tr><td>2026-10-06T12:24:39.415173Z</td><td>retrieval</td><td>retrieval</td><td>success</td><td>30041</td></tr><tr><td>2026-10-06T12:24:39.415208Z</td><td>rule-agent</td><td>reasoning</td><td>success</td><td>62541</td></tr><tr><td>2026-10-06T12:24:39.415296Z</td><td>proposal</td><td>proposal</td><td>success</td><td>22250</td></tr><tr><td>2026-10-06T12:24:39.415343Z</td><td>policy</td><td>policy</td><td>success</td><td>17125</td></tr><tr><td>2026-10-06T12:24:39.415375Z</td><td>execution</td><td>execution</td><td>success</td><td>12583</td></tr></tbody></table><details><summary>Recorded snapshot</summary><pre>{
+Rule matches identify evidence and inconsistencies, not financial correctness or causal proof.</pre><h2>Timeline</h2><table><thead><tr><th>Start UTC</th><th>Span</th><th>Type</th><th>Status</th><th>Duration ns</th></tr></thead><tbody><tr><td>2026-10-06T12:45:06.495459Z</td><td>data</td><td>data</td><td>success</td><td>25042</td></tr><tr><td>2026-10-06T12:45:06.495530Z</td><td>retrieval</td><td>retrieval</td><td>success</td><td>37042</td></tr><tr><td>2026-10-06T12:45:06.495575Z</td><td>rule-agent</td><td>reasoning</td><td>success</td><td>81166</td></tr><tr><td>2026-10-06T12:45:06.495688Z</td><td>proposal</td><td>proposal</td><td>success</td><td>26500</td></tr><tr><td>2026-10-06T12:45:06.495743Z</td><td>policy</td><td>policy</td><td>success</td><td>20167</td></tr><tr><td>2026-10-06T12:45:06.495781Z</td><td>execution</td><td>execution</td><td>success</td><td>14667</td></tr></tbody></table><details><summary>Recorded snapshot</summary><pre>{
   &quot;agent&quot;: {
     &quot;model&quot;: null,
     &quot;name&quot;: &quot;yield-agent&quot;,
@@ -34,7 +34,7 @@ Rule matches identify evidence and inconsistencies, not financial correctness or
     &quot;liquidity_allocation_threshold&quot;: 20000000,
     &quot;version&quot;: &quot;2&quot;
   },
-  &quot;canonical_version&quot;: &quot;agenttrace-json-v1&quot;,
+  &quot;canonical_version&quot;: &quot;tracefi-json-v1&quot;,
   &quot;context&quot;: {
     &quot;apy&quot;: 0.067,
     &quot;liquidity&quot;: 21000000,
@@ -43,8 +43,8 @@ Rule matches identify evidence and inconsistencies, not financial correctness or
     &quot;protocol&quot;: &quot;protocol_b&quot;
   },
   &quot;context_hash&quot;: &quot;fd4cc9b7f5c0c4c7faa2ae95d586231779e4eea7e3696f6ac422263bb7a67797&quot;,
-  &quot;duration_ns&quot;: 291792,
-  &quot;end&quot;: &quot;2026-10-06T12:24:39.415390Z&quot;,
+  &quot;duration_ns&quot;: 370375,
+  &quot;end&quot;: &quot;2026-10-06T12:45:06.495799Z&quot;,
   &quot;execution&quot;: {
     &quot;mode&quot;: &quot;synthetic&quot;,
     &quot;reason&quot;: &quot;MAX_EXPOSURE&quot;,
@@ -80,6 +80,15 @@ Rule matches identify evidence and inconsistencies, not financial correctness or
       ]
     }
   },
+  &quot;redaction_keys&quot;: [
+    &quot;accesstoken&quot;,
+    &quot;apikey&quot;,
+    &quot;authorization&quot;,
+    &quot;password&quot;,
+    &quot;privatekey&quot;,
+    &quot;refreshtoken&quot;,
+    &quot;secret&quot;
+  ],
   &quot;retrieval&quot;: {
     &quot;available_features&quot;: [
       &quot;apy&quot;,
@@ -104,8 +113,8 @@ Rule matches identify evidence and inconsistencies, not financial correctness or
   &quot;simulation&quot;: null,
   &quot;spans&quot;: [
     {
-      &quot;duration_ns&quot;: 18750,
-      &quot;end&quot;: &quot;2026-10-06T12:24:39.415138Z&quot;,
+      &quot;duration_ns&quot;: 25042,
+      &quot;end&quot;: &quot;2026-10-06T12:45:06.495484Z&quot;,
       &quot;events&quot;: [
         {
           &quot;payload&quot;: {
@@ -115,19 +124,19 @@ Rule matches identify evidence and inconsistencies, not financial correctness or
             &quot;price&quot;: 1,
             &quot;protocol&quot;: &quot;protocol_b&quot;
           },
-          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415121Z&quot;
+          &quot;timestamp&quot;: &quot;2026-10-06T12:45:06.495463Z&quot;
         }
       ],
-      &quot;id&quot;: &quot;sp_587d4ece96794d73ba13c27d7f38900c&quot;,
+      &quot;id&quot;: &quot;sp_149c1828ff704543be683380e38dfffc&quot;,
       &quot;name&quot;: &quot;data&quot;,
       &quot;parent_id&quot;: null,
-      &quot;start&quot;: &quot;2026-10-06T12:24:39.415119Z&quot;,
+      &quot;start&quot;: &quot;2026-10-06T12:45:06.495459Z&quot;,
       &quot;status&quot;: &quot;success&quot;,
       &quot;type&quot;: &quot;data&quot;
     },
     {
-      &quot;duration_ns&quot;: 30041,
-      &quot;end&quot;: &quot;2026-10-06T12:24:39.415203Z&quot;,
+      &quot;duration_ns&quot;: 37042,
+      &quot;end&quot;: &quot;2026-10-06T12:45:06.495568Z&quot;,
       &quot;events&quot;: [
         {
           &quot;payload&quot;: {
@@ -150,19 +159,19 @@ Rule matches identify evidence and inconsistencies, not financial correctness or
               &quot;liquidity_trend_24h&quot;
             ]
           },
-          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415175Z&quot;
+          &quot;timestamp&quot;: &quot;2026-10-06T12:45:06.495533Z&quot;
         }
       ],
-      &quot;id&quot;: &quot;sp_67680102c6344ea0b698cf79dc048c70&quot;,
+      &quot;id&quot;: &quot;sp_608fddd28fbe4431a7e6088498701679&quot;,
       &quot;name&quot;: &quot;retrieval&quot;,
       &quot;parent_id&quot;: null,
-      &quot;start&quot;: &quot;2026-10-06T12:24:39.415173Z&quot;,
+      &quot;start&quot;: &quot;2026-10-06T12:45:06.495530Z&quot;,
       &quot;status&quot;: &quot;success&quot;,
       &quot;type&quot;: &quot;retrieval&quot;
     },
     {
-      &quot;duration_ns&quot;: 62541,
-      &quot;end&quot;: &quot;2026-10-06T12:24:39.415270Z&quot;,
+      &quot;duration_ns&quot;: 81166,
+      &quot;end&quot;: &quot;2026-10-06T12:45:06.495656Z&quot;,
       &quot;events&quot;: [
         {
           &quot;payload&quot;: {
@@ -174,19 +183,19 @@ Rule matches identify evidence and inconsistencies, not financial correctness or
               ]
             }
           },
-          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415254Z&quot;
+          &quot;timestamp&quot;: &quot;2026-10-06T12:45:06.495635Z&quot;
         }
       ],
-      &quot;id&quot;: &quot;sp_166fba281dbc4f76bb4c951de817fd0c&quot;,
+      &quot;id&quot;: &quot;sp_7187499d4653413a94c919717d05e9e2&quot;,
       &quot;name&quot;: &quot;rule-agent&quot;,
       &quot;parent_id&quot;: null,
-      &quot;start&quot;: &quot;2026-10-06T12:24:39.415208Z&quot;,
+      &quot;start&quot;: &quot;2026-10-06T12:45:06.495575Z&quot;,
       &quot;status&quot;: &quot;success&quot;,
       &quot;type&quot;: &quot;reasoning&quot;
     },
     {
-      &quot;duration_ns&quot;: 22250,
-      &quot;end&quot;: &quot;2026-10-06T12:24:39.415319Z&quot;,
+      &quot;duration_ns&quot;: 26500,
+      &quot;end&quot;: &quot;2026-10-06T12:45:06.495714Z&quot;,
       &quot;events&quot;: [
         {
           &quot;payload&quot;: {
@@ -201,19 +210,19 @@ Rule matches identify evidence and inconsistencies, not financial correctness or
               ]
             }
           },
-          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415298Z&quot;
+          &quot;timestamp&quot;: &quot;2026-10-06T12:45:06.495690Z&quot;
         }
       ],
-      &quot;id&quot;: &quot;sp_16a3b64b72ac490f9c642e90bf0af281&quot;,
+      &quot;id&quot;: &quot;sp_fd540e2970ed4c04a6464e0c257e7751&quot;,
       &quot;name&quot;: &quot;proposal&quot;,
       &quot;parent_id&quot;: null,
-      &quot;start&quot;: &quot;2026-10-06T12:24:39.415296Z&quot;,
+      &quot;start&quot;: &quot;2026-10-06T12:45:06.495688Z&quot;,
       &quot;status&quot;: &quot;success&quot;,
       &quot;type&quot;: &quot;proposal&quot;
     },
     {
-      &quot;duration_ns&quot;: 17125,
-      &quot;end&quot;: &quot;2026-10-06T12:24:39.415360Z&quot;,
+      &quot;duration_ns&quot;: 20167,
+      &quot;end&quot;: &quot;2026-10-06T12:45:06.495763Z&quot;,
       &quot;events&quot;: [
         {
           &quot;payload&quot;: {
@@ -225,19 +234,19 @@ Rule matches identify evidence and inconsistencies, not financial correctness or
             &quot;requested_exposure&quot;: 0.8,
             &quot;should_reject&quot;: true
           },
-          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415344Z&quot;
+          &quot;timestamp&quot;: &quot;2026-10-06T12:45:06.495746Z&quot;
         }
       ],
-      &quot;id&quot;: &quot;sp_569b50d5968e4f378041ee1bbc414d17&quot;,
+      &quot;id&quot;: &quot;sp_8d3fd79b503241eabf76fff3efb378d3&quot;,
       &quot;name&quot;: &quot;policy&quot;,
       &quot;parent_id&quot;: null,
-      &quot;start&quot;: &quot;2026-10-06T12:24:39.415343Z&quot;,
+      &quot;start&quot;: &quot;2026-10-06T12:45:06.495743Z&quot;,
       &quot;status&quot;: &quot;success&quot;,
       &quot;type&quot;: &quot;policy&quot;
     },
     {
-      &quot;duration_ns&quot;: 12583,
-      &quot;end&quot;: &quot;2026-10-06T12:24:39.415387Z&quot;,
+      &quot;duration_ns&quot;: 14667,
+      &quot;end&quot;: &quot;2026-10-06T12:45:06.495795Z&quot;,
       &quot;events&quot;: [
         {
           &quot;payload&quot;: {
@@ -245,19 +254,19 @@ Rule matches identify evidence and inconsistencies, not financial correctness or
             &quot;reason&quot;: &quot;MAX_EXPOSURE&quot;,
             &quot;status&quot;: &quot;blocked&quot;
           },
-          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415376Z&quot;
+          &quot;timestamp&quot;: &quot;2026-10-06T12:45:06.495783Z&quot;
         }
       ],
-      &quot;id&quot;: &quot;sp_5c6fdf57f93e4248b3ef170753d75886&quot;,
+      &quot;id&quot;: &quot;sp_f4faae2d09f748fcb11650638e6011b5&quot;,
       &quot;name&quot;: &quot;execution&quot;,
       &quot;parent_id&quot;: null,
-      &quot;start&quot;: &quot;2026-10-06T12:24:39.415375Z&quot;,
+      &quot;start&quot;: &quot;2026-10-06T12:45:06.495781Z&quot;,
       &quot;status&quot;: &quot;success&quot;,
       &quot;type&quot;: &quot;execution&quot;
     }
   ],
   &quot;state_hash&quot;: &quot;0c9a19d354a6c4eff4f388fd360ef392be37759dd3d63932fc106b2ecfd22e9f&quot;,
   &quot;status&quot;: &quot;rejected&quot;,
-  &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415097Z&quot;,
-  &quot;trace_id&quot;: &quot;tr_99c4772c742541afa0f7db9153154d7b&quot;
+  &quot;timestamp&quot;: &quot;2026-10-06T12:45:06.495426Z&quot;,
+  &quot;trace_id&quot;: &quot;tr_a33f0a78cac042eb8eabd01d91f51740&quot;
 }</pre></details></html>
