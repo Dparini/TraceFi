@@ -99,17 +99,19 @@ def decision_text(proposal: dict[str, Any] | None) -> str:
 
 
 def replay_report(report: dict[str, Any]) -> str:
-    return "\n".join(
-        (
-            "TRACEFI REPLAY",
-            "Trace: " + report["trace_id"],
-            "Agent: " + report["agent"]["name"] + "@" + report["agent"]["version"],
-            "",
-            "Original: " + decision_text(report["original"]),
-            "Replayed: " + decision_text(report["replayed"]),
-            "",
-            "✓ MATCHING DECISION" if report["equal"] else "⚠ DECISION DIVERGENCE",
-            report["limitations"],
+    return terminal_safe(
+        "\n".join(
+            (
+                "TRACEFI REPLAY",
+                "Trace: " + report["trace_id"],
+                "Agent: " + report["agent"]["name"] + "@" + report["agent"]["version"],
+                "",
+                "Original: " + decision_text(report["original"]),
+                "Replayed: " + decision_text(report["replayed"]),
+                "",
+                "✓ MATCHING DECISION" if report["equal"] else "⚠ DECISION DIVERGENCE",
+                report["limitations"],
+            )
         )
     )
 
@@ -193,22 +195,26 @@ def regression_report(report: dict[str, Any]) -> str:
 
 def counterfactual_report(report: dict[str, Any]) -> str:
     if "boundary_found" in report:
-        return "\n".join(
-            (
-                "DECISION BOUNDARY "
-                + ("BRACKET FOUND" if report["boundary_found"] else "NOT FOUND AT ENDPOINTS"),
-                "Feature: " + report["feature"],
-                "Interval: " + str(report["interval"]),
-                report["limitations"],
+        return terminal_safe(
+            "\n".join(
+                (
+                    "DECISION BOUNDARY "
+                    + ("BRACKET FOUND" if report["boundary_found"] else "NOT FOUND AT ENDPOINTS"),
+                    "Feature: " + report["feature"],
+                    "Interval: " + str(report["interval"]),
+                    report["limitations"],
+                )
             )
         )
-    return "\n".join(
-        (
-            "TRACEFI COUNTERFACTUAL",
-            "Feature: " + report["feature"],
-            "Value: " + json.dumps(report["value"], ensure_ascii=False),
-            "Original: " + decision_text(report["original"]),
-            "Modified: " + decision_text(report["counterfactual"]),
-            "Decision changed: " + str(report["decision_changed"]),
+    return terminal_safe(
+        "\n".join(
+            (
+                "TRACEFI COUNTERFACTUAL",
+                "Feature: " + report["feature"],
+                "Value: " + json.dumps(report["value"], ensure_ascii=False),
+                "Original: " + decision_text(report["original"]),
+                "Modified: " + decision_text(report["counterfactual"]),
+                "Decision changed: " + str(report["decision_changed"]),
+            )
         )
     )

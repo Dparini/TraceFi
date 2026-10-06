@@ -9,7 +9,7 @@ specified contract, not unrestricted correctness or financial suitability.
 | Local, offline, dependency-free core | `pyproject.toml`, `scripts/check_install.py` | Development tools and UI build dependencies are optional; Ollama needs its own local service. |
 | Installable Python 3.10+ development release | CI 3.10/3.12/3.14, clean-clone wheel smoke test | Local execution used 3.14; other versions are CI checks. No PyPI publication claim. |
 | SDK quick-start, automatic captures | `sdk`, `tracing`; `test_replay_and_snapshot` | User instruments the actual inputs and checks. Uninstrumented evidence cannot be recovered. |
-| UUID IDs, UTC timestamps, monotonic duration | `tracing.new_id/now`, `perf_counter_ns`; nested-span tests | Wall-clock correctness depends on the host; monotonic durations do not authenticate timestamps. |
+| UUID IDs, UTC timestamps, monotonic duration | `tracing.identifier/now`, `perf_counter_ns`; nested-span tests | Wall-clock correctness depends on the host; monotonic durations do not authenticate timestamps. |
 | Independent snapshots, one proposal, frozen context | `test_context_frozen_and_none_proposal_rejected`, replay properties | Mutable returned reports and adapters cannot rewrite recorded inputs. |
 | Nested spans and exception recording | `test_exception_type_only_and_nested_spans`, span lifecycle/rollback tests | Spans must close in stack order. Storage errors propagate. Exception messages are omitted. |
 | Structured rationale, no hidden chain-of-thought capture | SDK API/source inspection, example adapters | Arbitrary caller payloads remain caller responsibility. There is no automatic extraction of internal model reasoning. |

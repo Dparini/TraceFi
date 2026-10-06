@@ -136,6 +136,8 @@ def analyze(trace: dict[str, Any]) -> dict[str, Any]:
         )
     if "price" in context and not finite_number(context["price"]):
         add(FailureType.DATA_FAILURE, "Price is missing or non-numeric.", path="context.price")
+    if "conflicting_sources" in context and not isinstance(context["conflicting_sources"], bool):
+        input_errors.append("context.conflicting_sources: expected a boolean")
     if context.get("conflicting_sources") is True:
         add(
             FailureType.DATA_FAILURE,
@@ -225,6 +227,8 @@ def analyze(trace: dict[str, Any]) -> dict[str, Any]:
         input_errors.append("retrieval.untrusted_data: expected a list of objects")
     else:
         for item in untrusted:
+            if "suspicious" in item and not isinstance(item["suspicious"], bool):
+                input_errors.append("retrieval.untrusted_data.suspicious: expected a boolean")
             if item.get("suspicious") is True:
                 add(
                     FailureType.ADVERSARIAL_INPUT,

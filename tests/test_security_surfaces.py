@@ -87,3 +87,21 @@ def test_scenario_validation_and_invalid_decision_scoring(tmp_path):
         (tmp_path / "a.json").write_text(payload)
         with pytest.raises(ValueError):
             load_scenarios(tmp_path)
+
+
+def test_adapter_exception_never_enters_cli_errors(tmp_path):
+    path = tmp_path / "trace.sqlite3"
+    storage = SQLiteStorage(path)
+    storage.save(make_trace())
+    storage.close()
+    adapter = MagicMock()
+    adapter.decide.side_effect = RuntimeError("SECRET_SENTINEL")
+    stream = io.StringIO()
+    with (
+        patch("tracefi.cli.load_adapter", return_value=adapter),
+        contextlib.redirect_stderr(stream),
+    ):
+        assert main(["--db", str(path), "replay", "latest", "--adapter", "deterministic"]) == 2
+    assert "RuntimeError" in stream.getvalue()
+    assert "SECRET_SENTINEL" not in stream.getvalue()
+    assert "Traceback" not in stream.getvalue()
