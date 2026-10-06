@@ -47,3 +47,7 @@ reordered equivalent states hash identically, modified trace/span/artifact rows
 fail verification, negative outcomes do not automatically become agent errors,
 and HTML exports escape malicious content. These checks do not certify all
 possible input paths or claim adversarial robustness.
+
+The [2026-10-06 manual review](docs/SECURITY_REVIEW.md) records resolved
+findings, their regression tests and remaining adapter, input and local-server
+risks. See [API limits](docs/API.md#bounded-json-and-numeric-precision).

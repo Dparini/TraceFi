@@ -9,3 +9,8 @@ dist/
 node_modules/
 .DS_Store
 .agenttrace/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+mutants/
+.coverage*

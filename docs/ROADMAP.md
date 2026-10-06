@@ -1,5 +1,10 @@
 # Roadmap
 
+**Temporary feature freeze.** Only bug fixes, test coverage, security hardening,
+accurate documentation and quality automation are accepted until the hardening
+gates pass. Keep SQLite and the dependency-free runtime. Blockchain and new
+product capabilities require a demonstrated need after this freeze.
+
 Current version: 0.1 development baseline with the main local workflow already
 implemented. These milestones describe release-quality gates, not claims that
 later features have been validated in production.

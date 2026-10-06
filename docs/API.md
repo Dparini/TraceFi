@@ -27,8 +27,8 @@ with t.span("retrieve-protocols", kind="retrieval") as span:
 Default keys: `api_key`, `private_key`, `authorization`, `password`, `secret`,
 `access_token`, `refresh_token`. Case, hyphens and underscores are ignored.
 Captured observations must be JSON objects; `None` is not a proposal.
-Custom keys extend defaults. Avoid configuring redaction for schema/control
-fields such as `context_hash` or `trace_id`.
+Custom keys extend defaults. Schema/control field names such as `context_hash`
+and `trace_id` are rejected as custom redaction keys.
 
 ## Adapter input
 
@@ -108,3 +108,28 @@ must already be recorded and its alternative value must be a finite number.
 The HTTP API accepts only the built-in deterministic adapter. Other models use
 explicit trusted CLI adapters. Invalid or unreproducible experiments return 422.
 No policy, execution, PnL or original trace is changed.
+
+## Bounded JSON and numeric precision
+
+Canonicalization sorts keys, preserves list order and Unicode scalar text,
+normalizes finite numbers and timezone-qualified timestamp values, and emits
+UTF-8 without whitespace. It rejects cycles, non-string keys, nonfinite values,
+naive Python datetimes, surrogate characters and unsupported objects. Duplicate
+JSON keys are rejected on read. Limits: depth 64, 100,000 visited nodes, 8 MiB
+canonical bytes and 4,096 expanded numeric digits. Timestamp precision is at
+most microseconds; additional zero fractional digits are accepted.
+
+Hashing supports precise Decimal values; persisted snapshots must also round-trip
+losslessly through the Python JSON number representation. Unrepresentable
+fractional Decimals are rejected rather than silently rounded. Financial
+arithmetic additionally requires numbers in the finite float range and excludes
+booleans. Negative zero and numerically equivalent integral numbers canonicalize
+identically; booleans and numbers remain distinct.
+
+Counterfactuals require two matching original replays and two matching results
+per intervention; repeated matches are not proof of determinism. Boundary
+iterations must be integers in 1–60 and endpoints finite and strictly ordered.
+Third operational decisions invalidate a binary boundary search. Dot paths only
+traverse object keys in the four state roots; lists are atomic and dotted/empty
+keys are rejected by why-change. Malformed analysis evidence is surfaced through
+`input_errors`, and cannot support `MARKET_OUTCOME`.

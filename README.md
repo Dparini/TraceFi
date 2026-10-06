@@ -171,7 +171,8 @@ tracefi why-change TRACE_A TRACE_B --adapter deterministic
 ```
 
 Counterfactuals change one input at a time. The chosen adapter must reproduce the
-original trace (both traces for `why-change`). A single sufficient change is
+original trace twice (both traces for `why-change`), and each intervention must
+return the same structured output twice. Repeated matches do not prove determinism. A single sufficient change is
 reported as a driver conditional on the recorded state. Interactions may require
 several changes together. Boundary search returns a numerical bracket under a
 monotonic-transition assumption; equal endpoints do not prove insensitivity.
@@ -288,11 +289,20 @@ name ownership, release review and an explicit publish step.
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v
+python3 -m pip install -e ".[dev]"
+ruff check tracefi tests scripts examples
+ruff format --check tracefi tests scripts examples
+mypy tracefi
+python3 -m pytest -q
+HYPOTHESIS_PROFILE=stress python3 -m pytest -q tests/test_properties.py
+python3 scripts/check_install.py
 python3 -m tracefi demo
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [ROADMAP.md](docs/ROADMAP.md).
+New features are temporarily frozen while hardening. See
+[README contract audit](docs/README_CONTRACTS.md),
+[manual security review](docs/SECURITY_REVIEW.md),
+[CONTRIBUTING.md](CONTRIBUTING.md) and [ROADMAP.md](docs/ROADMAP.md).
 Licensed under MIT.
 
 The package, SDK and CLI have been renamed to `tracefi`, `TraceFi` and `tracefi`.

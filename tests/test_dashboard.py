@@ -1,4 +1,5 @@
 """End-to-end checks for the installed CLI and loopback dashboard contract."""
+
 import json
 import socket
 import subprocess
@@ -8,19 +9,27 @@ import time
 import unittest
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 
 class DashboardTests(unittest.TestCase):
     def test_local_api_and_origin_guard(self):
         with tempfile.TemporaryDirectory() as directory:
             db = str(Path(directory) / "traces.sqlite3")
-            subprocess.run([sys.executable, "-m", "tracefi", "--db", db, "demo"], check=True, capture_output=True)
+            subprocess.run(
+                [sys.executable, "-m", "tracefi", "--db", db, "demo"],
+                check=True,
+                capture_output=True,
+            )
             with socket.socket() as probe:
                 probe.bind(("127.0.0.1", 0))
                 port = probe.getsockname()[1]
-            process = subprocess.Popen([sys.executable, "-m", "tracefi", "--db", db, "serve", "--port", str(port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            process = subprocess.Popen(
+                [sys.executable, "-m", "tracefi", "--db", db, "serve", "--port", str(port)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
             root = f"http://127.0.0.1:{port}"
             try:
                 for _ in range(100):
@@ -31,7 +40,7 @@ class DashboardTests(unittest.TestCase):
                     except URLError:
                         if process.poll() is not None:
                             self.fail("Dashboard server exited during startup")
-                        time.sleep(.05)
+                        time.sleep(0.05)
                 else:
                     self.fail("Dashboard did not start")
                 self.assertEqual(len(traces), 2)
@@ -39,18 +48,34 @@ class DashboardTests(unittest.TestCase):
                 with urlopen(root + "/api/traces/" + trace_id) as response:
                     detail = json.load(response)
                 self.assertEqual(detail["trace"]["status"], "rejected")
-                query = urlencode({"adapter": "deterministic", "feature": "context.liquidity", "value": "10000000"})
-                with urlopen(root + "/api/traces/" + trace_id + "/counterfactual?" + query) as response:
+                query = urlencode(
+                    {
+                        "adapter": "deterministic",
+                        "feature": "context.liquidity",
+                        "value": "10000000",
+                    }
+                )
+                with urlopen(
+                    root + "/api/traces/" + trace_id + "/counterfactual?" + query
+                ) as response:
                     experiment = json.load(response)
                 self.assertTrue(experiment["decision_changed"])
                 self.assertEqual(experiment["original"]["action"], "SUPPLY")
                 self.assertEqual(experiment["counterfactual"]["action"], "HOLD")
-                query = urlencode({"adapter": "untrusted_module:factory", "feature": "context.liquidity", "value": "10000000"})
+                query = urlencode(
+                    {
+                        "adapter": "untrusted_module:factory",
+                        "feature": "context.liquidity",
+                        "value": "10000000",
+                    }
+                )
                 with self.assertRaises(HTTPError) as error:
                     urlopen(root + "/api/traces/" + trace_id + "/counterfactual?" + query)
                 self.assertEqual(error.exception.code, 422)
                 error.exception.close()
-                query = urlencode({"adapter": "deterministic", "feature": "context.liquidity", "value": "NaN"})
+                query = urlencode(
+                    {"adapter": "deterministic", "feature": "context.liquidity", "value": "NaN"}
+                )
                 with self.assertRaises(HTTPError) as error:
                     urlopen(root + "/api/traces/" + trace_id + "/counterfactual?" + query)
                 self.assertEqual(error.exception.code, 422)
@@ -62,7 +87,9 @@ class DashboardTests(unittest.TestCase):
                 with urlopen(root) as response:
                     body = response.read().decode()
                     self.assertIn('id="root"', body)
-                    self.assertIn("frame-ancestors 'none'", response.headers["Content-Security-Policy"])
+                    self.assertIn(
+                        "frame-ancestors 'none'", response.headers["Content-Security-Policy"]
+                    )
                 for headers in ({"Host": "evil.example"}, {"Origin": "https://evil.example"}):
                     with self.assertRaises(HTTPError) as error:
                         urlopen(Request(root + "/api/traces", headers=headers))

@@ -1,20 +1,41 @@
 """CLI: all commands operate locally unless an Ollama adapter is selected."""
+
+from __future__ import annotations
+
 import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any, NoReturn
+
 from tracefi import TraceFi
-from tracefi.storage import SQLiteStorage
 from tracefi.analysis import analyze, diff, replay
-from tracefi.models import load_adapter
-from tracefi.counterfactual import counterfactual, boundary, why_change
+from tracefi.cli.render import (
+    counterfactual_report,
+    diff_report,
+    export_html,
+    postmortem,
+    regression_report,
+    replay_report,
+    why_change_report,
+)
+from tracefi.counterfactual import boundary, counterfactual, why_change
 from tracefi.evals import compare, load_scenarios
-from tracefi.cli.render import (export_html, postmortem, replay_report, diff_report,
-                                   why_change_report, regression_report, counterfactual_report)
+from tracefi.hashing import load_json
+from tracefi.models import load_adapter
+from tracefi.storage import SQLiteStorage
 
 
-def parser():
-    root = argparse.ArgumentParser(prog="tracefi", description="Financial decision provenance → failure attribution → counterfactual debugging")
+class SafeArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> NoReturn:
+        self.exit(2, "tracefi: invalid arguments; use --help for usage.\n")
+
+
+def parser() -> argparse.ArgumentParser:
+    root = SafeArgumentParser(
+        prog="tracefi",
+        description="Financial decision provenance → failure attribution → counterfactual debugging",
+    )
     root.add_argument("--db", default=".tracefi/traces.sqlite3", help="Local SQLite path")
     root.add_argument("--version", action="version", version="TraceFi 0.1.0")
     commands = root.add_subparsers(dest="command", required=True)
@@ -25,7 +46,9 @@ def parser():
         sub.add_argument("trace", nargs="?", default="latest")
         if command in ("replay", "counterfactual"):
             sub.add_argument("--json", action="store_true")
-            sub.add_argument("--adapter", required=True, help="Explicit adapter: deterministic or module:factory")
+            sub.add_argument(
+                "--adapter", required=True, help="Explicit adapter: deterministic or module:factory"
+            )
         if command == "export":
             sub.add_argument("--format", choices=("json", "html"), default="json")
             sub.add_argument("--output", type=Path)
@@ -58,36 +81,59 @@ def parser():
     return root
 
 
-def emit(value):
-    print(json.dumps(value, indent=2, ensure_ascii=False))
+def emit(value: Any) -> None:
+    print(json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False))
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
         if args.command == "demo":
             from tracefi.demo import run_demo
+
             with TraceFi(db=args.db) as collector:
                 ids = run_demo(collector)
                 print("TRACEFI DEMO · offline synthetic decisions")
                 for trace_id in ids:
                     trace = collector.storage.get(trace_id)
-                    print(trace_id, trace["proposal"]["action"], trace["proposal"]["amount"], trace["status"].upper())
+                    print(
+                        trace_id,
+                        trace["proposal"]["action"],
+                        trace["proposal"]["amount"],
+                        trace["status"].upper(),
+                    )
                 print("\n" + postmortem(collector.storage.get(ids[-1])))
-                print("\n" + why_change_report(why_change(collector.storage.get(ids[0]), collector.storage.get(ids[1]), load_adapter("deterministic"))))
+                print(
+                    "\n"
+                    + why_change_report(
+                        why_change(
+                            collector.storage.get(ids[0]),
+                            collector.storage.get(ids[1]),
+                            load_adapter("deterministic"),
+                        )
+                    )
+                )
             return 0
         if args.command == "run":
             from tracefi.evals import run_scenarios
+
             with TraceFi(db=args.db) as collector:
-                ids = run_scenarios(collector, load_adapter(args.adapter), load_scenarios(args.dataset))
+                ids = run_scenarios(
+                    collector, load_adapter(args.adapter), load_scenarios(args.dataset)
+                )
                 emit({"traces": ids, "synthetic": True})
             return 0
         if args.command == "eval":
-            report = compare(load_adapter(args.baseline), load_adapter(args.candidate), load_scenarios(args.dataset))
+            report = compare(
+                load_adapter(args.baseline),
+                load_adapter(args.candidate),
+                load_scenarios(args.dataset),
+            )
             emit(report) if args.json else print(regression_report(report))
             return 1 if args.fail_on_regression and report["regressions"] else 0
         if args.command == "serve":
             from tracefi.dashboard import serve
+
             serve(args.db, args.port)
             return 0
         storage = SQLiteStorage(args.db)
@@ -98,7 +144,11 @@ def main(argv=None):
                 emit(storage.list(args.limit))
             elif args.command in ("diff", "why-change"):
                 a, b = storage.get(args.trace_a), storage.get(args.trace_b)
-                report = diff(a, b) if args.command == "diff" else why_change(a, b, load_adapter(args.adapter))
+                report = (
+                    diff(a, b)
+                    if args.command == "diff"
+                    else why_change(a, b, load_adapter(args.adapter))
+                )
                 render = diff_report if args.command == "diff" else why_change_report
                 emit(report) if args.json else print(render(report))
             else:
@@ -116,14 +166,18 @@ def main(argv=None):
                     if args.value is not None:
                         if args.low is not None or args.high is not None:
                             raise ValueError("Use --value or --low/--high")
-                        report = counterfactual(trace, adapter, args.feature, json.loads(args.value))
+                        report = counterfactual(trace, adapter, args.feature, load_json(args.value))
                     elif args.low is not None and args.high is not None:
                         report = boundary(trace, adapter, args.feature, args.low, args.high)
                     else:
                         raise ValueError("Provide --value or both --low and --high")
                     emit(report) if args.json else print(counterfactual_report(report))
                 elif args.command == "export":
-                    value = export_html(trace) if args.format == "html" else json.dumps(trace, indent=2, ensure_ascii=False)
+                    value = (
+                        export_html(trace)
+                        if args.format == "html"
+                        else json.dumps(trace, indent=2, ensure_ascii=False)
+                    )
                     if args.output:
                         args.output.write_text(value, encoding="utf-8")
                         print(f"Exported {args.output}")
@@ -132,9 +186,12 @@ def main(argv=None):
         finally:
             storage.close()
         return 0
-    except (ValueError, TypeError, KeyError, OSError, ImportError) as exc:
+    except Exception as exc:
         # Never echo adapter/tool exception messages that may contain credentials.
-        print(f"tracefi: {type(exc).__name__}: operation failed; check inputs, adapter and trace integrity.", file=sys.stderr)
+        print(
+            f"tracefi: {type(exc).__name__}: operation failed; check inputs, adapter and trace integrity.",
+            file=sys.stderr,
+        )
         return 2
 
 

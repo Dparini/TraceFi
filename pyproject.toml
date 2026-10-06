@@ -21,3 +21,36 @@ include = ["tracefi*"]
 
 [tool.setuptools.package-data]
 tracefi = ["datasets/**/*.json", "web/*.html", "web/assets/*"]
+
+[project.optional-dependencies]
+dev = ["hypothesis>=6.168.5,<7", "pytest>=9.1.1,<10", "ruff>=0.16.10,<0.17", "mypy>=2.4.0,<3"]
+mutation = ["mutmut>=3.8.0,<4"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+include = ["tracefi/**/*.py", "tests/**/*.py", "scripts/**/*.py", "examples/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["tracefi"]
+check_untyped_defs = true
+disallow_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+no_implicit_optional = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-config --strict-markers"
+
+[tool.mutmut]
+source_paths = ["tracefi"]
+only_mutate = ["tracefi/hashing/*.py", "tracefi/security/*.py", "tracefi/counterfactual/*.py", "tracefi/analysis/*.py"]
+also_copy = ["scenarios"]
+pytest_add_cli_args = ["-q", "--ignore=tests/test_dashboard.py", "-k", "not attribution_stress_grid"]
+pytest_add_cli_args_test_selection = ["tests"]
+process_isolation = "forkserver"
