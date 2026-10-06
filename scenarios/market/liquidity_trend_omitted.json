@@ -1,0 +1,42 @@
+{
+  "id": "liquidity_trend_omitted",
+  "synthetic": true,
+  "description": "Offline fixture: liquidity trend omitted",
+  "state": {
+    "context": {
+      "apy": 0.067,
+      "liquidity": 21000000,
+      "price": 1,
+      "oracle_age_seconds": 20,
+      "protocol": "protocol_a"
+    },
+    "portfolio": {
+      "USDC": 100000
+    },
+    "agent_configuration": {
+      "version": "1"
+    },
+    "policy_configuration": {
+      "max_exposure": 0.35,
+      "max_oracle_age_seconds": 300
+    }
+  },
+  "retrieval": {
+    "available_features": [
+      "liquidity_trend_24h"
+    ],
+    "included_features": [],
+    "required_features": [
+      "liquidity_trend_24h"
+    ],
+    "evidence": [
+      {
+        "source": "synthetic",
+        "liquidity_trend_24h": -0.41
+      }
+    ]
+  },
+  "outcome": {
+    "pnl": -1821
+  }
+}

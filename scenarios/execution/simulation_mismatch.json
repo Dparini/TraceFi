@@ -1,0 +1,33 @@
+{
+  "id": "simulation_mismatch",
+  "synthetic": true,
+  "description": "Offline fixture: simulation mismatch",
+  "state": {
+    "context": {
+      "apy": 0.067,
+      "liquidity": 21000000,
+      "price": 1,
+      "oracle_age_seconds": 20,
+      "protocol": "protocol_a"
+    },
+    "portfolio": {
+      "USDC": 100000
+    },
+    "agent_configuration": {
+      "version": "1"
+    },
+    "policy_configuration": {
+      "max_exposure": 0.35,
+      "max_oracle_age_seconds": 300
+    }
+  },
+  "simulation": {
+    "success": true,
+    "predicted_effect": 25000,
+    "effect_tolerance": 1
+  },
+  "execution": {
+    "status": "success",
+    "actual_effect": 18000
+  }
+}

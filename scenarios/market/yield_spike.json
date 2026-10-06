@@ -1,0 +1,24 @@
+{
+  "id": "yield_spike",
+  "synthetic": true,
+  "description": "Offline fixture: yield spike",
+  "state": {
+    "context": {
+      "apy": 0.9,
+      "liquidity": 21000000,
+      "price": 1,
+      "oracle_age_seconds": 20,
+      "protocol": "protocol_a"
+    },
+    "portfolio": {
+      "USDC": 100000
+    },
+    "agent_configuration": {
+      "version": "1"
+    },
+    "policy_configuration": {
+      "max_exposure": 0.35,
+      "max_oracle_age_seconds": 300
+    }
+  }
+}

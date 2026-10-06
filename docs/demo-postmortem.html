@@ -1,0 +1,263 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>AgentTrace post-mortem</title><style>
+body{font:16px system-ui;background:#0b1020;color:#e2e8f0;max-width:1100px;margin:40px auto;padding:24px}
+h1{color:#67e8f9}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#141e33;padding:24px;border-radius:12px}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:12px;border-bottom:1px solid #334155}
+</style><h1>AgentTrace</h1><p>Local decision observability · synthetic results are not financial validation.</p>
+<pre>AGENTTRACE POST-MORTEM
+
+Trace: tr_99c4772c742541afa0f7db9153154d7b
+Agent: yield-agent@2
+Decision: {&quot;action&quot;: &quot;SUPPLY&quot;, &quot;amount&quot;: 80000, &quot;asset&quot;: &quot;USDC&quot;, &quot;protocol&quot;: &quot;protocol_b&quot;, &quot;rationale&quot;: {&quot;factors&quot;: [&quot;Yield meets threshold&quot;, &quot;Sufficient reported liquidity&quot;]}}
+Outcome: {}
+
+CONTEXT: recorded
+RETRIEVAL: recorded
+PROPOSAL: recorded
+POLICY: {&quot;approved&quot;: false, &quot;maximum_exposure&quot;: 0.35, &quot;reasons&quot;: [&quot;MAX_EXPOSURE&quot;], &quot;requested_exposure&quot;: 0.8, &quot;should_reject&quot;: true}
+SIMULATION: not recorded
+EXECUTION: {&quot;mode&quot;: &quot;synthetic&quot;, &quot;reason&quot;: &quot;MAX_EXPOSURE&quot;, &quot;status&quot;: &quot;blocked&quot;}
+OUTCOME: not recorded
+
+LIKELY FAILURE CLASS: RETRIEVAL_FAILURE
+[likely] RETRIEVAL_FAILURE: Available required features omitted from agent context: liquidity_trend_24h
+
+Rule matches identify evidence and inconsistencies, not financial correctness or causal proof.</pre><h2>Timeline</h2><table><thead><tr><th>Start UTC</th><th>Span</th><th>Type</th><th>Status</th><th>Duration ns</th></tr></thead><tbody><tr><td>2026-10-06T12:24:39.415119Z</td><td>data</td><td>data</td><td>success</td><td>18750</td></tr><tr><td>2026-10-06T12:24:39.415173Z</td><td>retrieval</td><td>retrieval</td><td>success</td><td>30041</td></tr><tr><td>2026-10-06T12:24:39.415208Z</td><td>rule-agent</td><td>reasoning</td><td>success</td><td>62541</td></tr><tr><td>2026-10-06T12:24:39.415296Z</td><td>proposal</td><td>proposal</td><td>success</td><td>22250</td></tr><tr><td>2026-10-06T12:24:39.415343Z</td><td>policy</td><td>policy</td><td>success</td><td>17125</td></tr><tr><td>2026-10-06T12:24:39.415375Z</td><td>execution</td><td>execution</td><td>success</td><td>12583</td></tr></tbody></table><details><summary>Recorded snapshot</summary><pre>{
+  &quot;agent&quot;: {
+    &quot;model&quot;: null,
+    &quot;name&quot;: &quot;yield-agent&quot;,
+    &quot;version&quot;: &quot;2&quot;
+  },
+  &quot;agent_config_hash&quot;: &quot;5cf9d795b797aed838558265aec4724682929feeb5f6003542fc682c2df7f9bf&quot;,
+  &quot;agent_configuration&quot;: {
+    &quot;allocation_low&quot;: 0.25,
+    &quot;liquidity_allocation_threshold&quot;: 20000000,
+    &quot;version&quot;: &quot;2&quot;
+  },
+  &quot;canonical_version&quot;: &quot;agenttrace-json-v1&quot;,
+  &quot;context&quot;: {
+    &quot;apy&quot;: 0.067,
+    &quot;liquidity&quot;: 21000000,
+    &quot;oracle_age_seconds&quot;: 20,
+    &quot;price&quot;: 1,
+    &quot;protocol&quot;: &quot;protocol_b&quot;
+  },
+  &quot;context_hash&quot;: &quot;fd4cc9b7f5c0c4c7faa2ae95d586231779e4eea7e3696f6ac422263bb7a67797&quot;,
+  &quot;duration_ns&quot;: 291792,
+  &quot;end&quot;: &quot;2026-10-06T12:24:39.415390Z&quot;,
+  &quot;execution&quot;: {
+    &quot;mode&quot;: &quot;synthetic&quot;,
+    &quot;reason&quot;: &quot;MAX_EXPOSURE&quot;,
+    &quot;status&quot;: &quot;blocked&quot;
+  },
+  &quot;outcome&quot;: null,
+  &quot;policy&quot;: {
+    &quot;approved&quot;: false,
+    &quot;maximum_exposure&quot;: 0.35,
+    &quot;reasons&quot;: [
+      &quot;MAX_EXPOSURE&quot;
+    ],
+    &quot;requested_exposure&quot;: 0.8,
+    &quot;should_reject&quot;: true
+  },
+  &quot;policy_configuration&quot;: {
+    &quot;max_exposure&quot;: 0.35
+  },
+  &quot;policy_hash&quot;: &quot;d88f5fcb5bffa41b4d44212dd87ccb4d643d9cbab6aa481acf14d40147b995e2&quot;,
+  &quot;portfolio&quot;: {
+    &quot;USDC&quot;: 100000
+  },
+  &quot;portfolio_hash&quot;: &quot;b98b2115534a3649eb258c1dfa1ddcb850a6f3275dc12e1cb6134e616d4f4afb&quot;,
+  &quot;proposal&quot;: {
+    &quot;action&quot;: &quot;SUPPLY&quot;,
+    &quot;amount&quot;: 80000,
+    &quot;asset&quot;: &quot;USDC&quot;,
+    &quot;protocol&quot;: &quot;protocol_b&quot;,
+    &quot;rationale&quot;: {
+      &quot;factors&quot;: [
+        &quot;Yield meets threshold&quot;,
+        &quot;Sufficient reported liquidity&quot;
+      ]
+    }
+  },
+  &quot;retrieval&quot;: {
+    &quot;available_features&quot;: [
+      &quot;apy&quot;,
+      &quot;liquidity&quot;,
+      &quot;liquidity_trend_24h&quot;
+    ],
+    &quot;evidence&quot;: [
+      {
+        &quot;liquidity_trend_24h&quot;: -0.41,
+        &quot;source&quot;: &quot;synthetic-snapshot&quot;
+      }
+    ],
+    &quot;included_features&quot;: [
+      &quot;apy&quot;,
+      &quot;liquidity&quot;
+    ],
+    &quot;required_features&quot;: [
+      &quot;liquidity_trend_24h&quot;
+    ]
+  },
+  &quot;schema_version&quot;: 1,
+  &quot;simulation&quot;: null,
+  &quot;spans&quot;: [
+    {
+      &quot;duration_ns&quot;: 18750,
+      &quot;end&quot;: &quot;2026-10-06T12:24:39.415138Z&quot;,
+      &quot;events&quot;: [
+        {
+          &quot;payload&quot;: {
+            &quot;apy&quot;: 0.067,
+            &quot;liquidity&quot;: 21000000,
+            &quot;oracle_age_seconds&quot;: 20,
+            &quot;price&quot;: 1,
+            &quot;protocol&quot;: &quot;protocol_b&quot;
+          },
+          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415121Z&quot;
+        }
+      ],
+      &quot;id&quot;: &quot;sp_587d4ece96794d73ba13c27d7f38900c&quot;,
+      &quot;name&quot;: &quot;data&quot;,
+      &quot;parent_id&quot;: null,
+      &quot;start&quot;: &quot;2026-10-06T12:24:39.415119Z&quot;,
+      &quot;status&quot;: &quot;success&quot;,
+      &quot;type&quot;: &quot;data&quot;
+    },
+    {
+      &quot;duration_ns&quot;: 30041,
+      &quot;end&quot;: &quot;2026-10-06T12:24:39.415203Z&quot;,
+      &quot;events&quot;: [
+        {
+          &quot;payload&quot;: {
+            &quot;available_features&quot;: [
+              &quot;apy&quot;,
+              &quot;liquidity&quot;,
+              &quot;liquidity_trend_24h&quot;
+            ],
+            &quot;evidence&quot;: [
+              {
+                &quot;liquidity_trend_24h&quot;: -0.41,
+                &quot;source&quot;: &quot;synthetic-snapshot&quot;
+              }
+            ],
+            &quot;included_features&quot;: [
+              &quot;apy&quot;,
+              &quot;liquidity&quot;
+            ],
+            &quot;required_features&quot;: [
+              &quot;liquidity_trend_24h&quot;
+            ]
+          },
+          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415175Z&quot;
+        }
+      ],
+      &quot;id&quot;: &quot;sp_67680102c6344ea0b698cf79dc048c70&quot;,
+      &quot;name&quot;: &quot;retrieval&quot;,
+      &quot;parent_id&quot;: null,
+      &quot;start&quot;: &quot;2026-10-06T12:24:39.415173Z&quot;,
+      &quot;status&quot;: &quot;success&quot;,
+      &quot;type&quot;: &quot;retrieval&quot;
+    },
+    {
+      &quot;duration_ns&quot;: 62541,
+      &quot;end&quot;: &quot;2026-10-06T12:24:39.415270Z&quot;,
+      &quot;events&quot;: [
+        {
+          &quot;payload&quot;: {
+            &quot;adapter&quot;: &quot;deterministic&quot;,
+            &quot;rationale&quot;: {
+              &quot;factors&quot;: [
+                &quot;Yield meets threshold&quot;,
+                &quot;Sufficient reported liquidity&quot;
+              ]
+            }
+          },
+          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415254Z&quot;
+        }
+      ],
+      &quot;id&quot;: &quot;sp_166fba281dbc4f76bb4c951de817fd0c&quot;,
+      &quot;name&quot;: &quot;rule-agent&quot;,
+      &quot;parent_id&quot;: null,
+      &quot;start&quot;: &quot;2026-10-06T12:24:39.415208Z&quot;,
+      &quot;status&quot;: &quot;success&quot;,
+      &quot;type&quot;: &quot;reasoning&quot;
+    },
+    {
+      &quot;duration_ns&quot;: 22250,
+      &quot;end&quot;: &quot;2026-10-06T12:24:39.415319Z&quot;,
+      &quot;events&quot;: [
+        {
+          &quot;payload&quot;: {
+            &quot;action&quot;: &quot;SUPPLY&quot;,
+            &quot;amount&quot;: 80000,
+            &quot;asset&quot;: &quot;USDC&quot;,
+            &quot;protocol&quot;: &quot;protocol_b&quot;,
+            &quot;rationale&quot;: {
+              &quot;factors&quot;: [
+                &quot;Yield meets threshold&quot;,
+                &quot;Sufficient reported liquidity&quot;
+              ]
+            }
+          },
+          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415298Z&quot;
+        }
+      ],
+      &quot;id&quot;: &quot;sp_16a3b64b72ac490f9c642e90bf0af281&quot;,
+      &quot;name&quot;: &quot;proposal&quot;,
+      &quot;parent_id&quot;: null,
+      &quot;start&quot;: &quot;2026-10-06T12:24:39.415296Z&quot;,
+      &quot;status&quot;: &quot;success&quot;,
+      &quot;type&quot;: &quot;proposal&quot;
+    },
+    {
+      &quot;duration_ns&quot;: 17125,
+      &quot;end&quot;: &quot;2026-10-06T12:24:39.415360Z&quot;,
+      &quot;events&quot;: [
+        {
+          &quot;payload&quot;: {
+            &quot;approved&quot;: false,
+            &quot;maximum_exposure&quot;: 0.35,
+            &quot;reasons&quot;: [
+              &quot;MAX_EXPOSURE&quot;
+            ],
+            &quot;requested_exposure&quot;: 0.8,
+            &quot;should_reject&quot;: true
+          },
+          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415344Z&quot;
+        }
+      ],
+      &quot;id&quot;: &quot;sp_569b50d5968e4f378041ee1bbc414d17&quot;,
+      &quot;name&quot;: &quot;policy&quot;,
+      &quot;parent_id&quot;: null,
+      &quot;start&quot;: &quot;2026-10-06T12:24:39.415343Z&quot;,
+      &quot;status&quot;: &quot;success&quot;,
+      &quot;type&quot;: &quot;policy&quot;
+    },
+    {
+      &quot;duration_ns&quot;: 12583,
+      &quot;end&quot;: &quot;2026-10-06T12:24:39.415387Z&quot;,
+      &quot;events&quot;: [
+        {
+          &quot;payload&quot;: {
+            &quot;mode&quot;: &quot;synthetic&quot;,
+            &quot;reason&quot;: &quot;MAX_EXPOSURE&quot;,
+            &quot;status&quot;: &quot;blocked&quot;
+          },
+          &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415376Z&quot;
+        }
+      ],
+      &quot;id&quot;: &quot;sp_5c6fdf57f93e4248b3ef170753d75886&quot;,
+      &quot;name&quot;: &quot;execution&quot;,
+      &quot;parent_id&quot;: null,
+      &quot;start&quot;: &quot;2026-10-06T12:24:39.415375Z&quot;,
+      &quot;status&quot;: &quot;success&quot;,
+      &quot;type&quot;: &quot;execution&quot;
+    }
+  ],
+  &quot;state_hash&quot;: &quot;0c9a19d354a6c4eff4f388fd360ef392be37759dd3d63932fc106b2ecfd22e9f&quot;,
+  &quot;status&quot;: &quot;rejected&quot;,
+  &quot;timestamp&quot;: &quot;2026-10-06T12:24:39.415097Z&quot;,
+  &quot;trace_id&quot;: &quot;tr_99c4772c742541afa0f7db9153154d7b&quot;
+}</pre></details></html>

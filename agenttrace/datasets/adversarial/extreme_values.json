@@ -1,0 +1,24 @@
+{
+  "id": "extreme_values",
+  "synthetic": true,
+  "description": "Offline fixture: extreme values",
+  "state": {
+    "context": {
+      "apy": 1e+50,
+      "liquidity": 1e+100,
+      "price": 1,
+      "oracle_age_seconds": 20,
+      "protocol": "protocol_a"
+    },
+    "portfolio": {
+      "USDC": 100000
+    },
+    "agent_configuration": {
+      "version": "1"
+    },
+    "policy_configuration": {
+      "max_exposure": 0.35,
+      "max_oracle_age_seconds": 300
+    }
+  }
+}

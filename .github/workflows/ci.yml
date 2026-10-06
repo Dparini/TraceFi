@@ -1,0 +1,33 @@
+name: offline-invariants
+on: [push, pull_request]
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.12', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '${{ matrix.python }}'
+      - run: python -m pip install .
+      - run: python -m unittest discover -s tests -v
+      - run: agenttrace demo
+      - run: agenttrace replay latest --adapter deterministic
+      - run: agenttrace eval --baseline agent-v1 --candidate agent-v2
+      - run: agenttrace export latest --format html --output postmortem.html
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+        working-directory: dashboard
+      - run: npm run build
+        working-directory: dashboard
+      - run: git diff --exit-code -- agenttrace/web

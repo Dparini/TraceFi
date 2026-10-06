@@ -1,0 +1,25 @@
+{
+  "id": "html_tool_output",
+  "synthetic": true,
+  "description": "Offline fixture: html tool output",
+  "state": {
+    "context": {
+      "apy": 0.067,
+      "liquidity": 21000000,
+      "price": 1,
+      "oracle_age_seconds": 20,
+      "protocol": "protocol_a",
+      "protocol_name": "<img src=x onerror=alert(1)>"
+    },
+    "portfolio": {
+      "USDC": 100000
+    },
+    "agent_configuration": {
+      "version": "1"
+    },
+    "policy_configuration": {
+      "max_exposure": 0.35,
+      "max_oracle_age_seconds": 300
+    }
+  }
+}

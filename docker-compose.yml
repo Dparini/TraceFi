@@ -1,0 +1,7 @@
+# Optional offline-runtime CLI container; no services or published ports.
+services:
+  agenttrace:
+    build: .
+    command: ["demo"]
+    volumes:
+      - ./.agenttrace:/workspace/.agenttrace
