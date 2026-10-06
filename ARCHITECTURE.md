@@ -76,7 +76,9 @@ mathematical claim about the cause of financial loss.
 Replay compares full proposals with canonical hashing. Counterfactuals compare
 operational signatures (action, protocol, asset, amount), so wording changes in
 rationale alone do not create a decision boundary. Baseline reproduction is
-required before experiments. One replay does not establish determinism.
+required twice before experiments, and interventions must match twice. Repeated
+matches do not establish determinism. See the bounded precision/input contract
+in [API.md](docs/API.md#bounded-json-and-numeric-precision).
 
 Scenario evaluation measures proposals, with blocking policy checks. Trace
 scenario runs additionally inject explicitly labeled faults. Synthetic data is

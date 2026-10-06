@@ -1,0 +1,35 @@
+{
+  "tool": "mutmut 3.8.0",
+  "initial_complete_run": {
+    "total": 1610,
+    "killed": 913,
+    "survived": 697,
+    "hypothesis_profile": "ci"
+  },
+  "followup_profile": "mutation (40 examples)",
+  "inventory_kind": "full run plus explicit affected-function reruns",
+  "modules": {
+    "analysis": {
+      "killed": 588,
+      "survived": 324,
+      "other": {}
+    },
+    "counterfactual": {
+      "killed": 257,
+      "survived": 105,
+      "other": {}
+    },
+    "hashing": {
+      "killed": 165,
+      "survived": 118,
+      "other": {}
+    },
+    "security": {
+      "killed": 64,
+      "survived": 20,
+      "other": {}
+    }
+  },
+  "total_killed": 1074,
+  "total_survived": 567
+}

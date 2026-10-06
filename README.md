@@ -302,6 +302,7 @@ python3 -m tracefi demo
 New features are temporarily frozen while hardening. See
 [README contract audit](docs/README_CONTRACTS.md),
 [manual security review](docs/SECURITY_REVIEW.md),
+[hardening results and remaining gates](docs/HARDENING.md),
 [CONTRIBUTING.md](CONTRIBUTING.md) and [ROADMAP.md](docs/ROADMAP.md).
 Licensed under MIT.
 
