@@ -1,5 +1,9 @@
 # README contract audit
 
+Historical 2026-10-06 audit of the pre-release baseline. Superseded for release
+qualification by [v0.1.0 validation](RELEASE_VALIDATION.md); original findings
+and measurements remain preserved below.
+
 Reviewed 2026-10-06. This table covers the operational claims in the README;
 financial motivation and examples are illustrative. A passing test supports the
 specified contract, not unrestricted correctness or financial suitability.

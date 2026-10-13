@@ -69,15 +69,19 @@ def make_adapter():
 - Proposal: `action`, `asset`, finite nonnegative `amount`, optional `protocol`,
   structured `rationale.factors`.
 - Policy: `approved`, `should_reject`, optional `reasons`; configured
-  `max_exposure` is interpreted as supply amount / recorded asset balance.
+  `max_exposure` defaults to supply amount / recorded asset balance. Explicit
+  `exposure_basis: total_portfolio` selects USDC post-supply protocol exposure
+  using `portfolio.total_value_usdc` and `portfolio.positions` (protocol → USDC).
 - Simulation: `success`, optional numeric `predicted_effect`, `effect_tolerance`.
 - Execution: `status` (`success`, `blocked`, `failed`, `reverted`), optional
   boolean `success` and numeric `actual_effect`.
 - Outcome: optional numeric `pnl`, optional observational metadata.
 
-Checks are about these fields, not arbitrary financial correctness. The example
-policy assumes a single proposal's exposure; it does not calculate cumulative
-portfolio, correlated exposure, slippage or withdrawal balances.
+Checks are about these fields, not arbitrary financial correctness. The default example policy checks a single proposal against an asset balance.
+Enhanced total-portfolio mode includes existing per-protocol positions, principal
+funding and withdrawal position bounds. Neither mode calculates correlated risk
+or complete transaction/slippage mechanics. Financial arithmetic refuses
+nonfinite/underflowed ratios; supply thresholds use high-precision decimal comparisons.
 
 Trace status is `error` for a captured exception, `failed` for failed execution,
 `rejected` for a rejected policy and otherwise `success` (completed context).
@@ -105,7 +109,11 @@ returns a one-variable proposal experiment. The adapter must reproduce the
 original recorded proposal. Supported inputs are `context.apy`,
 `context.liquidity`, `context.price` and `context.oracle_age_seconds`; the feature
 must already be recorded and its alternative value must be a finite number.
-The HTTP API accepts only the built-in deterministic adapter. Other models use
+Lending experiments also allow fixed `context.markets.protocol_a|protocol_b`
+fields: `supply_apy`, `liquidity_usdc`, `liquidity_trend_24h`,
+`oracle_age_seconds` and `transaction_cost_usdc`. A missing trend leaf can be
+added to restore an omitted signal; its parent market must exist.
+The HTTP API accepts only `deterministic`, `lending-v1` and `lending-v2`. Other models use
 explicit trusted CLI adapters. Invalid or unreproducible experiments return 422.
 No policy, execution, PnL or original trace is changed.
 
@@ -133,3 +141,17 @@ Third operational decisions invalidate a binary boundary search. Dot paths only
 traverse object keys in the four state roots; lists are atomic and dotted/empty
 keys are rejected by why-change. Malformed analysis evidence is surfaced through
 `input_errors`, and cannot support `MARKET_OUTCOME`.
+
+## v0.1.0 operational changes
+
+Inspection opens SQLite read-only and never creates a missing DB. Final DB
+symlinks are refused. `list` adds action/amount/asset summaries from the same
+verified payload, avoiding duplicate dashboard verification. Parent graphs must
+reference existing spans and be acyclic. Hashes still cover the same canonical
+byte format; no migration rewrites original payloads.
+
+Export filenames are create-only, private and atomically published. Existing
+files/symlinks fail rather than being overwritten. Parent directories are trusted.
+Numerical search samples up to 17 points and rejects observed multiple or
+non-monotonic transitions; returned diagnostics never claim proven monotonicity.
+See [counterfactual assumptions](COUNTERFACTUALS.md) and [regression metrics](REGRESSION_TESTING.md).

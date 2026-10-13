@@ -1,0 +1,14 @@
+include README.md LICENSE ARCHITECTURE.md THREAT_MODEL.md CONTRIBUTING.md
+recursive-include docs *.md *.json *.txt
+recursive-include examples *.py
+recursive-include benchmarks *.py
+recursive-include scripts *.py
+recursive-include tests *.py
+recursive-include scenarios *.json
+recursive-include tracefi *.json *.html *.js *.css
+prune mutants
+prune dashboard/node_modules
+prune .venv
+prune .tracefi
+global-exclude *.pyc .DS_Store
+recursive-include docs/assets *.png *.gif *.json *.webm

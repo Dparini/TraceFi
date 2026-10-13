@@ -19,11 +19,18 @@ from tracefi.cli.render import (
     replay_report,
     why_change_report,
 )
-from tracefi.counterfactual import boundary, counterfactual, why_change
-from tracefi.evals import compare, load_scenarios
+from tracefi.counterfactual import (
+    ERROR_MESSAGES,
+    CounterfactualError,
+    boundary,
+    counterfactual,
+    why_change,
+)
+from tracefi.evals import REGRESSION_DIRECTIONS, compare, load_scenarios
 from tracefi.hashing import load_json
 from tracefi.models import load_adapter
-from tracefi.storage import SQLiteStorage
+from tracefi.security.files import write_export
+from tracefi.storage import IntegrityError, SQLiteStorage
 
 
 class SafeArgumentParser(argparse.ArgumentParser):
@@ -40,10 +47,21 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--version", action="version", version="TraceFi 0.1.0")
     commands = root.add_subparsers(dest="command", required=True)
     listing = commands.add_parser("list", help="List recent traces")
-    listing.add_argument("--limit", type=int, default=50)
+    listing.add_argument(
+        "--limit", type=int, default=50, help="1–1000 verified traces (default 50)"
+    )
     for command in ("show", "analyze", "replay", "export", "counterfactual"):
-        sub = commands.add_parser(command)
-        sub.add_argument("trace", nargs="?", default="latest")
+        descriptions = {
+            "show": "Show a verified trace",
+            "analyze": "Evidence-based failure findings",
+            "replay": "Compare one explicit adapter replay",
+            "export": "Create a private non-overwriting JSON/HTML report",
+            "counterfactual": "Test one input or a conditional numerical bracket",
+        }
+        sub = commands.add_parser(
+            command, help=descriptions[command], description=descriptions[command]
+        )
+        sub.add_argument("trace", nargs="?", default="latest", help="Trace ID (default latest)")
         if command in ("replay", "counterfactual"):
             sub.add_argument("--json", action="store_true")
             sub.add_argument(
@@ -72,12 +90,23 @@ def parser() -> argparse.ArgumentParser:
     evaluation.add_argument("--candidate", required=True)
     evaluation.add_argument("--dataset", type=Path, default=Path(__file__).parents[1] / "datasets")
     evaluation.add_argument("--fail-on-regression", action="store_true")
+    evaluation.add_argument(
+        "--regression-metric",
+        action="append",
+        choices=tuple(REGRESSION_DIRECTIONS),
+        help="Repeat to select CI regression gates",
+    )
     runner = commands.add_parser("run", help="Capture offline scenarios with injected test faults")
     runner.add_argument("--adapter", default="deterministic")
     runner.add_argument("--dataset", type=Path, default=Path(__file__).parents[1] / "datasets")
-    commands.add_parser("demo")
+    demo = commands.add_parser("demo", help="Offline synthetic trace demo")
+    demo.add_argument(
+        "--case-study", action="store_true", help="Run the two-market lending investigation"
+    )
     serve = commands.add_parser("serve", help="Local read-only timeline dashboard")
-    serve.add_argument("--port", type=int, default=8765)
+    serve.add_argument(
+        "--port", type=int, default=8765, help="Loopback port, 1–65535 (default 8765)"
+    )
     return root
 
 
@@ -88,10 +117,22 @@ def emit(value: Any) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        if getattr(args, "dataset", None) == Path("lending"):
+            from tracefi.case_study import DATASET
+
+            args.dataset = DATASET
         if args.command == "demo":
             from tracefi.demo import run_demo
 
             with TraceFi(db=args.db) as collector:
+                if args.case_study:
+                    from tracefi.case_study import run_case_study
+
+                    result = run_case_study(collector)
+                    print("TRACEFI LENDING CASE STUDY · fully synthetic · no funds")
+                    print(postmortem(collector.storage.get(result["trace_id"])))
+                    print(counterfactual_report(result["counterfactual"]))
+                    return 0
                 ids = run_demo(collector)
                 print("TRACEFI DEMO · offline synthetic decisions")
                 for trace_id in ids:
@@ -128,6 +169,7 @@ def main(argv: list[str] | None = None) -> int:
                 load_adapter(args.baseline),
                 load_adapter(args.candidate),
                 load_scenarios(args.dataset),
+                regression_metrics=args.regression_metric,
             )
             emit(report) if args.json else print(regression_report(report))
             return 1 if args.fail_on_regression and report["regressions"] else 0
@@ -136,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
 
             serve(args.db, args.port)
             return 0
-        storage = SQLiteStorage(args.db)
+        storage = SQLiteStorage(args.db, read_only=True)
         try:
             if args.command == "list":
                 if args.limit < 1:
@@ -179,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
                         else json.dumps(trace, indent=2, ensure_ascii=False)
                     )
                     if args.output:
-                        args.output.write_text(value, encoding="utf-8")
+                        write_export(args.output, value)
                         print(f"Exported {args.output}")
                     else:
                         print(value)
@@ -188,8 +230,30 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     except Exception as exc:
         # Never echo adapter/tool exception messages that may contain credentials.
+        hints = {
+            FileNotFoundError: "Database or input missing; run tracefi demo to create traces.",
+            FileExistsError: "Output exists; choose a new filename. Existing files are never overwritten.",
+            IntegrityError: "Trace integrity check failed; preserve the database and investigate corruption.",
+            KeyError: "Trace not found; inspect tracefi list for available identifiers.",
+            ModuleNotFoundError: "Adapter dependency unavailable; install the trusted adapter dependencies.",
+        }
+        hint = hints.get(type(exc), "Operation failed; check inputs, adapter and trace integrity.")
+        if isinstance(exc, FileNotFoundError) and args.command == "export":
+            hint = "Database or output directory missing; use an existing trace and destination directory."
+        if (
+            isinstance(exc, CounterfactualError)
+            and isinstance(exc.code, str)
+            and exc.code in ERROR_MESSAGES
+        ):
+            hint = (
+                exc.code
+                + ": "
+                + ERROR_MESSAGES.get(
+                    exc.code, "Counterfactual unavailable; check adapter and inputs."
+                )
+            )
         print(
-            f"tracefi: {type(exc).__name__}: operation failed; check inputs, adapter and trace integrity.",
+            f"tracefi: {type(exc).__name__}: {hint}",
             file=sys.stderr,
         )
         return 2

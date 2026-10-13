@@ -1,5 +1,9 @@
 # Manual security review
 
+Historical 2026-10-06 audit of the pre-release baseline. Superseded for release
+qualification by [v0.1.0 validation](RELEASE_VALIDATION.md); original findings
+and measurements remain preserved below.
+
 Date: 2026-10-06. Scope: SDK capture/finalization, canonical JSON, redaction,
 SQLite integrity, replay, counterfactual interventions, attribution, scenario
 loading, CLI/rendering, loopback HTTP routes, React rendering and optional Ollama

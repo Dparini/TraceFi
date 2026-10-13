@@ -26,6 +26,10 @@ def load_adapter(name: str) -> ModelAdapter:
         return DeterministicAgent(
             version="1" if name == "agent-v1" else "2" if name == "agent-v2" else None
         )
+    if name in ("lending-v1", "lending-v2"):
+        from tracefi.case_study import LendingAgent
+
+        return LendingAgent("1" if name == "lending-v1" else "2")
     if name == "ollama":
         from tracefi.models.ollama import OllamaAgent
 

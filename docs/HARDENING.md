@@ -1,5 +1,9 @@
 # Hardening validation
 
+Historical 2026-10-06 audit of the pre-release baseline. Superseded for release
+qualification by [v0.1.0 validation](RELEASE_VALIDATION.md); original findings
+and measurements remain preserved below.
+
 2026-10-06. New product features are frozen. SQLite remains the only core store;
 the Python runtime has no third-party dependencies and no blockchain integration.
 

@@ -1,0 +1,104 @@
+{
+  "core_source_sha256": "5a142ea5fb846017a4eecb19724674c12eac9dbc3dcc829c80707cdac7fdd689",
+  "benchmark_script_sha256": "89fb301f15ac19109bf77ea4e078f48c965da49f836c958a37ba02cf5d1bdfe1",
+  "python": "3.14.6 (main, Jun 10 2026, 10:03:53) [Clang 21.0.0 (clang-2100.0.123.102)]",
+  "os": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "hardware": {
+    "logical_cpus": 8,
+    "machine": "arm64",
+    "processor": "Apple M1",
+    "memory_bytes": "8589934592"
+  },
+  "methodology": {
+    "clock": "perf_counter_ns",
+    "warmups": 5,
+    "repetitions": 100,
+    "sqlite_journal_mode": "delete",
+    "sqlite_synchronous": 2,
+    "dataset": "Synthetic USDC decision, 6 capture spans, 10 retrieval labels; same payload with fresh trace/span UUIDs.",
+    "serialized_trace_bytes": 4031,
+    "write_scope": "Fresh UUID/deepcopy preparation plus canonicalization, hashing and committed SQLite transaction; no network.",
+    "read_scope": "Strict JSON parsing included in both; verified reads additionally verify all stored snapshots/spans/artifacts.",
+    "storage_scope": "One database populated sequentially with an individual transaction per trace; no WAL, compression or retained journal.",
+    "caveat": "Warm local filesystem caches. Export excludes disk output. Machine-specific measurements, not guarantees.",
+    "concurrent_workload": "Local mutation testing ran concurrently; no CPU affinity or load isolation."
+  },
+  "latencies": {
+    "capture_without_database": {
+      "samples": 100,
+      "median_ms": 4.234458500000001,
+      "p25_ms": 2.71362475,
+      "p75_ms": 6.42514575,
+      "min_ms": 2.214291,
+      "max_ms": 72.087291
+    },
+    "sqlite_write": {
+      "samples": 100,
+      "median_ms": 6.104188000000001,
+      "p25_ms": 3.9902495,
+      "p75_ms": 9.8067915,
+      "min_ms": 3.095208,
+      "max_ms": 19.442958
+    },
+    "sqlite_read_unverified": {
+      "samples": 100,
+      "median_ms": 0.900396,
+      "p25_ms": 0.87235425,
+      "p75_ms": 1.2243745000000001,
+      "min_ms": 0.853709,
+      "max_ms": 3.609417
+    },
+    "sqlite_read_verified": {
+      "samples": 100,
+      "median_ms": 2.8217920000000003,
+      "p25_ms": 2.68605175,
+      "p75_ms": 3.23925,
+      "min_ms": 2.607833,
+      "max_ms": 12.405958
+    },
+    "replay_comparison": {
+      "samples": 100,
+      "median_ms": 0.3488965,
+      "p25_ms": 0.33344775000000004,
+      "p75_ms": 0.35489625,
+      "min_ms": 0.321792,
+      "max_ms": 1.628333
+    },
+    "json_export_serialization": {
+      "samples": 100,
+      "median_ms": 0.025375,
+      "p25_ms": 0.025292,
+      "p75_ms": 0.025458249999999998,
+      "min_ms": 0.025167,
+      "max_ms": 0.028208
+    },
+    "html_export_rendering": {
+      "samples": 100,
+      "median_ms": 4.5193545,
+      "p25_ms": 4.33571875,
+      "p75_ms": 5.35578125,
+      "min_ms": 4.181542,
+      "max_ms": 15.236792
+    },
+    "verification_paired_increment": {
+      "samples": 100,
+      "median_ms": 2.53698,
+      "p25_ms": 1.9172607499999998,
+      "p75_ms": 4.94291675,
+      "min_ms": -1.2178750000000003,
+      "max_ms": 20.492165999999997
+    }
+  },
+  "storage": [
+    {
+      "traces": 1000,
+      "database_bytes": 8925184,
+      "bytes_per_trace": 8925.184
+    },
+    {
+      "traces": 10000,
+      "database_bytes": 89079808,
+      "bytes_per_trace": 8907.9808
+    }
+  ]
+}

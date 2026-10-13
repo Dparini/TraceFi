@@ -1,33 +1,76 @@
 # Contributing
 
-TraceFi focuses on observe → reproduce → compare → diagnose. Contributions
-must explain how they improve that workflow. Do not introduce real-money trading,
-mandatory cloud services or internal chain-of-thought capture.
+TraceFi focuses on observe → reproduce → compare → diagnose. Keep the local,
+dependency-free Python runtime and SQLite architecture. Do not add real-money
+execution, mandatory services or hidden chain-of-thought capture. Changes must
+explain their effect on correctness or a demonstrated investigation workflow.
 
-Use Python 3.10+ and keep the core dependency-free. Run
-`python3 -m pytest -q`, `ruff check tracefi tests scripts examples`,
-`ruff format --check tracefi tests scripts examples` and `mypy tracefi`.
-Install a development checkout with `python3 -m pip install -e ".[dev]"`.
-For property stress tests set `HYPOTHESIS_PROFILE=stress`; normal CI uses 200
-examples per property and stress uses 2,000 (finite domains can exhaust early).
-Mutation testing: install `.[mutation]`, then run
-`HYPOTHESIS_PROFILE=mutation mutmut run --max-children 4` and `mutmut results`.
-Inspect surviving mutations; do not use the score as a correctness claim.
-Run `python3 scripts/check_install.py` from a committed checkout with wheel
-build tooling installed to verify a clean clone and isolated wheel installation.
-New features are temporarily frozen; changes should resolve documented defects
-or improve tests, security, documentation and validation. For dashboard edits, use Node 22+, `npm ci` and
-`npm run build` in `dashboard/`, and commit the rebuilt packaged assets.
+## Development and validation
 
-Test invariants and observable behavior: independent snapshots, stable hashes,
-credential exclusion, integrity failure, honest unknown classification, replay
-and counterfactual consistency. Synthetic scenarios must run offline and label
-fault injection explicitly. Avoid tests that only mirror implementation lines.
+Use Python 3.10+; CI checks 3.10, 3.12 and 3.14.
 
-Changes to canonicalization or persisted trace contracts require a version
-change, migration design and compatibility tests. Distinguish observed facts,
-likely attribution and untested assumptions in code, reports and documentation.
+```bash
+python -m pip install -e '.[dev]'
+ruff check tracefi tests scripts examples benchmarks
+ruff format --check tracefi tests scripts examples benchmarks
+mypy tracefi
+python -m pytest -q
+HYPOTHESIS_PROFILE=stress python -m pytest -q tests/test_properties.py tests/test_release_hardening.py
+python -m build
+```
 
-Pull requests should describe the trigger, resulting behavior, verification and
-material limitations. Do not include keys, private traces or actual account data.
-For security issues, avoid posting sensitive reproduction data publicly.
+Normal Hypothesis checks use up to 200 examples; stress uses up to 2,000.
+Finite domains may exhaust earlier. Test semantic invariants, not implementation
+line counts. The mutation profile uses 40 examples to bound runtime.
+
+```bash
+python -m pip install -e '.[mutation]'
+HYPOTHESIS_PROFILE=mutation mutmut run --max-children 4
+mutmut results
+```
+
+Review surviving logic mutants; message-only mutations and equivalent changes
+require explicit justification, not a blanket score target. Mutation scope covers
+hashing, redaction/export, attribution/replay, boundary search and SQLite.
+Historical results are preserved; [release validation](docs/RELEASE_VALIDATION.md)
+identifies the actually exercised scope.
+
+## Browser and packaging
+
+```bash
+cd dashboard
+npm ci
+npm audit
+npm run build
+cd ..
+python -m pip install -e '.[ui]'
+python -m playwright install chromium
+python scripts/check_dashboard.py
+python scripts/check_install.py
+```
+
+Commit rebuilt packaged web assets when frontend source changes; installed
+wheels must work without Node or a CDN. `check_install.py` clones the committed
+checkout, builds wheel/sdist, rebuilds the sdist, and tests wheel and editable
+installs outside the source tree. Editable bootstrap downloads free build tools;
+installed demos have no network requirement. Commit the intended changes before
+using this clean-clone gate. Dist directories, local DBs, mutation caches and
+virtual environments are ignored and must not be committed.
+
+## Contracts and releases
+
+Canonical format changes require an explicit version/migration design and
+compatibility tests. Supported old traces must not be silently rewritten.
+Instrument actual state and distinguish observed evidence, inferred explanation
+and unknowns. Synthetic datasets must be labeled and run offline.
+
+PRs should describe the trigger, resulting behavior, verification and material
+limits. Never commit credentials, private traces or machine-specific settings.
+Keep financial comparisons honest: proposed exposure/cost is not an executed
+position, and counterfactual sensitivity is not causal proof.
+
+Before tagging, run required checks, qualify clean installation and verify green
+remote CI. A release must point to that validated commit and include measured
+validation, installation instructions, assets/checksums and known limitations.
+Do not overwrite published tags/releases or publish to PyPI without verified
+package ownership and explicit publication authorization.

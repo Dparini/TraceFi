@@ -189,6 +189,15 @@ def regression_report(report: dict[str, Any]) -> str:
         )
     if not report["regressions"]:
         lines.append("  No tracked regressions")
+    for label, field in (
+        ("IMPROVEMENTS", "improvements"),
+        ("TRADE-OFFS (outside configured gates)", "trade_offs"),
+    ):
+        lines.extend(["", label])
+        for change in report.get(field, []):
+            lines.append(f"  {change['metric']}: {change['baseline']} → {change['candidate']}")
+        if not report.get(field):
+            lines.append("  None recorded")
     lines.extend(["", report["baseline"]["limitations"], report["limitations"]])
     return terminal_safe("\n".join(lines))
 

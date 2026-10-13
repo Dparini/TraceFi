@@ -14,16 +14,32 @@ from tracefi.hashing import MAX_BYTES, load_json, snapshot, state_hash
 from tracefi.models import ModelAdapter, observed_decision
 from tracefi.models.deterministic import finite_number
 
+MAX_SCENARIOS = 1000
+MAX_DATASET_BYTES = 64 * 1024 * 1024
+
 
 def load_scenarios(directory: str | Path) -> list[dict[str, Any]]:
-    paths = sorted(Path(directory).rglob("*.json"))
+    paths = []
+    for path in Path(directory).rglob("*.json"):
+        paths.append(path)
+        if len(paths) > MAX_SCENARIOS:
+            raise ValueError("Dataset exceeds scenario count limit")
+    paths.sort()
     if not paths:
         raise ValueError(f"No JSON scenarios in {directory}")
     result = []
+    total_bytes = 0
     for path in paths:
-        if path.stat().st_size > MAX_BYTES:
+        size = path.stat().st_size
+        total_bytes += size
+        if total_bytes > MAX_DATASET_BYTES:
+            raise ValueError("Dataset exceeds total byte limit")
+        if size > MAX_BYTES:
             raise ValueError("Scenario exceeds the byte limit")
-        scenario = load_json(path.read_bytes())
+        if path.is_symlink():
+            raise ValueError("Scenario symlinks are unsupported")
+        with path.open("rb") as stream:
+            scenario = load_json(stream.read(MAX_BYTES + 1))
         if not isinstance(scenario, dict) or not isinstance(scenario.get("state"), dict):
             raise ValueError(f"Scenario needs an object state: {path}")
         scenario.setdefault("id", str(path.relative_to(directory)))
@@ -34,39 +50,45 @@ def load_scenarios(directory: str | Path) -> list[dict[str, Any]]:
     return result
 
 
+def _evaluate_scenario(adapter: ModelAdapter, scenario: dict[str, Any]) -> dict[str, Any]:
+    state = snapshot(scenario["state"])
+    proposal = observed_decision(adapter, snapshot(state))
+    repeated = observed_decision(adapter, snapshot(state))
+    policy = check_policy(
+        proposal, state.get("portfolio", {}), state.get("policy_configuration", {})
+    )
+    row = {
+        "scenario": scenario["id"],
+        "decision": proposal,
+        "valid": valid_proposal(proposal),
+        "consistent": state_hash(proposal) == state_hash(repeated),
+        "unsafe_proposal": not policy["approved"],
+        "policy_violation": False,
+        "exposure": policy.get("requested_exposure"),
+        "matches_expected": state_hash(proposal) == state_hash(scenario["expected_decision"])
+        if "expected_decision" in scenario
+        else None,
+    }
+    if "metrics_model" in scenario:
+        if scenario["metrics_model"] != "synthetic-lending-v1":
+            raise ValueError("Unknown metrics model")
+        from tracefi.case_study import assess
+
+        row["financial_metrics"] = assess(proposal, state)
+    return row
+
+
 def evaluate(adapter: ModelAdapter, scenarios: list[dict[str, Any]]) -> dict[str, Any]:
     rows = []
     for scenario in scenarios:
         try:
-            state = snapshot(scenario["state"])
-            proposal = observed_decision(adapter, state)
-            if not isinstance(proposal, dict):
-                raise ValueError("Decision must be an object")
-            valid = valid_proposal(proposal)
-            policy = check_policy(
-                proposal, state.get("portfolio", {}), state.get("policy_configuration", {})
-            )
-            # All execution is simulated; unsafe proposals are blocked, not violations.
-            unsafe = not policy["approved"]
-            rows.append(
-                {
-                    "scenario": scenario["id"],
-                    "decision": proposal,
-                    "valid": valid,
-                    "unsafe_proposal": unsafe,
-                    "policy_violation": False,
-                    "exposure": policy.get("requested_exposure"),
-                    "matches_expected": state_hash(proposal)
-                    == state_hash(scenario["expected_decision"])
-                    if "expected_decision" in scenario
-                    else None,
-                }
-            )
+            rows.append(_evaluate_scenario(adapter, scenario))
         except Exception as exc:
             rows.append(
                 {
                     "scenario": scenario["id"],
                     "valid": False,
+                    "consistent": False,
                     "error_type": type(exc).__name__,
                     "unsafe_proposal": False,
                     "policy_violation": False,
@@ -74,9 +96,35 @@ def evaluate(adapter: ModelAdapter, scenarios: list[dict[str, Any]]) -> dict[str
                 }
             )
     exposures = [row["exposure"] for row in rows if finite_number(row.get("exposure"))]
+    financial = [row["financial_metrics"] for row in rows if "financial_metrics" in row]
+    financial_metrics = {
+        "financial_metrics_scenarios": len(financial),
+        "average_maximum_protocol_exposure": math.fsum(
+            row["maximum_protocol_exposure"] / len(financial) for row in financial
+        )
+        if financial
+        else None,
+        "proposed_transaction_cost_usdc": math.fsum(
+            row["proposed_transaction_cost_usdc"] for row in financial
+        )
+        if financial
+        else None,
+        "declining_liquidity_proposals": sum(
+            row["declining_liquidity_proposals"] for row in financial
+        )
+        if financial
+        else None,
+        "missing_trend_proposals": sum(row["missing_trend_proposals"] for row in financial)
+        if financial
+        else None,
+    }
     return {
         "metrics": {
             "scenarios": len(rows),
+            **financial_metrics,
+            "consistent_decisions": sum(row["consistent"] for row in rows),
+            "failed_scenarios": sum("error_type" in row for row in rows),
+            "policy_rejections": sum(row["unsafe_proposal"] for row in rows),
             "valid_decisions": sum(row["valid"] for row in rows),
             "unsafe_proposals": sum(row["unsafe_proposal"] for row in rows),
             "policy_violations": sum(row["policy_violation"] for row in rows),
@@ -89,24 +137,57 @@ def evaluate(adapter: ModelAdapter, scenarios: list[dict[str, Any]]) -> dict[str
     }
 
 
+REGRESSION_DIRECTIONS = {
+    "valid_decisions": 1,
+    "consistent_decisions": 1,
+    "failed_scenarios": -1,
+    "unsafe_proposals": -1,
+    "policy_rejections": -1,
+    "average_proposed_exposure": -1,
+    "average_maximum_protocol_exposure": -1,
+    "declining_liquidity_proposals": -1,
+    "missing_trend_proposals": -1,
+    "proposed_transaction_cost_usdc": -1,
+}
+DEFAULT_REGRESSIONS = [
+    "valid_decisions",
+    "unsafe_proposals",
+    "average_proposed_exposure",
+    "consistent_decisions",
+    "failed_scenarios",
+]
+
+
 def compare(
-    baseline: ModelAdapter, candidate: ModelAdapter, scenarios: list[dict[str, Any]]
+    baseline: ModelAdapter,
+    candidate: ModelAdapter,
+    scenarios: list[dict[str, Any]],
+    regression_metrics: list[str] | None = None,
 ) -> dict[str, Any]:
+    tracked = DEFAULT_REGRESSIONS if regression_metrics is None else regression_metrics
+    if any(metric not in REGRESSION_DIRECTIONS for metric in tracked):
+        raise ValueError("Unsupported regression metric")
     a, b = evaluate(baseline, scenarios), evaluate(candidate, scenarios)
-    regressions = []
-    for metric in ("valid_decisions", "unsafe_proposals", "average_proposed_exposure"):
+    regressions, improvements, trade_offs = [], [], []
+    for metric, direction in REGRESSION_DIRECTIONS.items():
         old, new = a["metrics"][metric], b["metrics"][metric]
-        if (
-            old is not None
-            and new is not None
-            and (new < old if metric == "valid_decisions" else new > old)
-        ):
-            regressions.append({"metric": metric, "baseline": old, "candidate": new})
+        if old is None or new is None or old == new:
+            continue
+        change = {"metric": metric, "baseline": old, "candidate": new}
+        if (new - old) * direction > 0:
+            improvements.append(change)
+        elif metric in tracked:
+            regressions.append(change)
+        else:
+            trade_offs.append(change)
     return {
         "baseline": a,
         "candidate": b,
         "regressions": regressions,
-        "limitations": "A regression report does not decide which agent is financially better.",
+        "improvements": improvements,
+        "trade_offs": trade_offs,
+        "tracked_metrics": list(tracked),
+        "limitations": "Metric direction is an explicit comparison convention, not financial optimality. Lower costs can mean less participation; policy rejections may demonstrate a working control. Costs/exposure describe proposals, including blocked ones. No returns or drawdown are inferred.",
     }
 
 
@@ -131,15 +212,19 @@ def run_scenarios(
                 scenario.get("retrieval", {"scenario": scenario["id"], "synthetic": True})
             )
             with t.span("scenario-decision", "reasoning") as span:
-                proposal = scenario.get("proposal_override") or adapter.decide(
-                    decision_state(t.record)
+                proposal = (
+                    scenario["proposal_override"]
+                    if "proposal_override" in scenario
+                    else adapter.decide(decision_state(t.record))
                 )
                 span.log(
                     {"scenario": scenario["id"], "fault_injection": "proposal_override" in scenario}
                 )
             t.capture_decision(proposal)
-            policy = scenario.get("policy_override") or check_policy(
-                proposal, t.record["portfolio"], t.record["policy_configuration"]
+            policy = (
+                scenario["policy_override"]
+                if "policy_override" in scenario
+                else check_policy(proposal, t.record["portfolio"], t.record["policy_configuration"])
             )
             t.capture_policy(policy)
             if policy.get("approved"):

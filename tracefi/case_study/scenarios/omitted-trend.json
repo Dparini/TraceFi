@@ -1,0 +1,57 @@
+{
+  "id": "omitted-trend",
+  "synthetic": true,
+  "state": {
+    "context": {
+      "markets": {
+        "protocol_a": {
+          "supply_apy": 0.041,
+          "liquidity_usdc": 35000000,
+          "liquidity_trend_24h": 0.02,
+          "oracle_age_seconds": 20,
+          "transaction_cost_usdc": 12
+        },
+        "protocol_b": {
+          "supply_apy": 0.067,
+          "liquidity_usdc": 21000000,
+          "oracle_age_seconds": 40,
+          "transaction_cost_usdc": 18
+        }
+      }
+    },
+    "portfolio": {
+      "USDC": 80000,
+      "total_value_usdc": 100000,
+      "positions": {
+        "protocol_a": 15000,
+        "protocol_b": 5000
+      }
+    },
+    "agent_configuration": {
+      "strategy": "synthetic-lending",
+      "version": "1"
+    },
+    "policy_configuration": {
+      "exposure_basis": "total_portfolio",
+      "max_exposure": 0.35,
+      "max_oracle_age_seconds": 300
+    }
+  },
+  "market_snapshot": {
+    "protocol_a": {
+      "supply_apy": 0.041,
+      "liquidity_usdc": 35000000,
+      "liquidity_trend_24h": 0.02,
+      "oracle_age_seconds": 20,
+      "transaction_cost_usdc": 12
+    },
+    "protocol_b": {
+      "supply_apy": 0.067,
+      "liquidity_usdc": 21000000,
+      "oracle_age_seconds": 40,
+      "transaction_cost_usdc": 18,
+      "liquidity_trend_24h": -0.41
+    }
+  },
+  "metrics_model": "synthetic-lending-v1"
+}

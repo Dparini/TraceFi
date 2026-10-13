@@ -22,10 +22,12 @@ jobs:
         with:
           python-version: '${{ matrix.python }}'
           cache: pip
-      - run: python -m pip install '.[dev]' wheel 'setuptools>=68'
-      - run: ruff check tracefi tests scripts examples
-      - run: ruff format --check tracefi tests scripts examples
+      - run: python -m pip install --upgrade 'pip>=26.2'
+      - run: python -m pip install '.[dev]' wheel 'setuptools>=77'
+      - run: ruff check tracefi tests scripts examples benchmarks
+      - run: ruff format --check tracefi tests scripts examples benchmarks
       - run: mypy tracefi
+      - run: python scripts/check_docs.py
       - run: python -m pytest -q --junitxml=test-results.xml
       - run: python scripts/check_install.py
       - uses: actions/upload-artifact@v4
@@ -41,6 +43,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: python -m pip install --upgrade 'pip>=26.2'
       - run: python -m pip install '.[dev,mutation]'
       - run: python -m pytest -q tests/test_properties.py tests/test_edge_cases.py
         env:
@@ -65,8 +68,14 @@ jobs:
           cache-dependency-path: dashboard/package-lock.json
       - run: npm ci
         working-directory: dashboard
-      - run: npm audit --omit=dev
+      - run: npm audit
         working-directory: dashboard
       - run: npm run build
         working-directory: dashboard
       - run: git diff --exit-code -- tracefi/web
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install '.[ui]'
+      - run: python -m playwright install --with-deps chromium
+      - run: python scripts/check_dashboard.py

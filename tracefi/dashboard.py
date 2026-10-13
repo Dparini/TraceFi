@@ -22,10 +22,23 @@ COUNTERFACTUAL_FEATURES = {
     "context.liquidity",
     "context.price",
     "context.oracle_age_seconds",
+    *(
+        f"context.markets.{protocol}.{field}"
+        for protocol in ("protocol_a", "protocol_b")
+        for field in (
+            "supply_apy",
+            "liquidity_usdc",
+            "liquidity_trend_24h",
+            "oracle_age_seconds",
+            "transaction_cost_usdc",
+        )
+    ),
 }
 
 
 def serve(db: str | Path, port: int = 8765) -> None:
+    if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+        raise ValueError("Port must be between 1 and 65535")
     assets = Path(__file__).parent / "web"
     if not (assets / "index.html").exists():
         raise ValueError(
@@ -61,32 +74,27 @@ def serve(db: str | Path, port: int = 8765) -> None:
 
         def do_GET(self) -> None:
             allowed = {f"127.0.0.1:{port}", f"localhost:{port}"}
-            if self.headers.get("Host") not in allowed:
+            if (
+                len(self.headers.get_all("Host", [])) != 1
+                or self.headers.get("Host") not in allowed
+            ):
                 self.send(403, b'{"error":"Invalid host"}')
                 return
             origin = self.headers.get("Origin")
-            if origin and origin not in {"http://" + host for host in allowed}:
+            if (
+                len(self.headers.get_all("Origin", [])) > 1
+                or origin
+                and origin not in {"http://" + host for host in allowed}
+            ):
                 self.send(403, b'{"error":"Invalid origin"}')
                 return
-            path = unquote(urlsplit(self.path).path)
             storage = None
             try:
+                path = unquote(urlsplit(self.path).path)
                 if path.startswith("/api/"):
                     storage = SQLiteStorage(db, read_only=True)
                     if path == "/api/traces":
-                        rows = []
-                        for row in storage.list(1000):
-                            trace = storage.get(row["id"])
-                            proposal = trace.get("proposal") or {}
-                            rows.append(
-                                {
-                                    **row,
-                                    "action": proposal.get("action"),
-                                    "amount": proposal.get("amount"),
-                                    "asset": proposal.get("asset"),
-                                }
-                            )
-                        body = json.dumps(rows).encode()
+                        body = json.dumps(storage.list(1000)).encode()
                     elif path.startswith("/api/traces/"):
                         parts = path.split("/")
                         if (
@@ -106,7 +114,11 @@ def serve(db: str | Path, port: int = 8765) -> None:
                                     len(values) != 1 for values in params.values()
                                 ):
                                     raise ValueError("Invalid experiment parameters")
-                                if params["adapter"][0] != "deterministic":
+                                if params["adapter"][0] not in (
+                                    "deterministic",
+                                    "lending-v1",
+                                    "lending-v2",
+                                ):
                                     raise ValueError("Unsupported adapter")
                                 feature = params["feature"][0]
                                 value = load_json(params["value"][0])
@@ -114,13 +126,16 @@ def serve(db: str | Path, port: int = 8765) -> None:
                                     value
                                 ):
                                     raise ValueError("Invalid financial input")
-                                if feature.split(".")[1] not in trace["context"]:
+                                if (
+                                    not feature.startswith("context.markets.")
+                                    and feature.split(".")[1] not in trace["context"]
+                                ):
                                     raise ValueError("Input was not recorded")
                                 result = counterfactual(
-                                    trace, load_adapter("deterministic"), feature, value
+                                    trace, load_adapter(params["adapter"][0]), feature, value
                                 )
                                 result["limitations"] = (
-                                    "One-variable experiment on the synthetic deterministic adapter. No transaction, policy recheck or financial outcome is simulated."
+                                    "One-variable experiment on the selected synthetic built-in adapter. No transaction, policy recheck or financial outcome is simulated."
                                 )
                             except (ValueError, TypeError):
                                 self.send(

@@ -112,3 +112,29 @@ Existing payloads and hashes are never rewritten during the rename. The default
 DB is now `.tracefi/traces.sqlite3`; use `tracefi --db
 .agenttrace/traces.sqlite3 list` to inspect an existing local database. The
 Python package, SDK class and CLI are now `tracefi`, `TraceFi` and `tracefi`.
+
+## Decision lifecycle
+
+```mermaid
+flowchart TD
+    A[Market Data] --> B[Retrieval]
+    B --> C[Agent Decision]
+    C --> D[Policy Check]
+    D -->|approved| E[Simulation]
+    D -->|rejected| X[Blocked observation]
+    E -->|success| F[Synthetic Execution]
+    E -->|failed| X
+    F --> G[Recorded Outcome]
+    G --> H[Post-Mortem Analysis]
+    X --> H
+```
+
+These stages are caller instrumentation; the SDK captures observations rather
+than enforcing an external executor's workflow. The lending example implements
+the depicted gates and captures an explicit synthetic outcome. `tracefi run`
+uses its documented generic fault-injection execution fixture.
+
+The [lending case study](docs/FINANCIAL_CASE_STUDY.md) adds an example adapter and
+fixed local dataset, not a service. Enhanced per-protocol policy mode is explicit;
+the original asset-balance mode remains the default. Evaluations use independent
+state copies for two decisions and independent policy/metric assessment.

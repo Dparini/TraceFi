@@ -95,6 +95,22 @@ class DashboardTests(unittest.TestCase):
                         urlopen(Request(root + "/api/traces", headers=headers))
                     self.assertEqual(error.exception.code, 403)
                     error.exception.close()
+                for headers in (
+                    (f"Host: 127.0.0.1:{port}", f"Host: localhost:{port}"),
+                    (
+                        f"Host: 127.0.0.1:{port}",
+                        f"Origin: http://127.0.0.1:{port}",
+                        "Origin: https://evil.example",
+                    ),
+                ):
+                    with socket.create_connection(("127.0.0.1", port), timeout=2) as client:
+                        request = (
+                            "GET /api/traces HTTP/1.1\r\n"
+                            + "\r\n".join(headers)
+                            + "\r\nConnection: close\r\n\r\n"
+                        )
+                        client.sendall(request.encode())
+                        self.assertIn(b"403", client.recv(1024).split(b"\r\n")[0])
                 with self.assertRaises(HTTPError) as error:
                     urlopen(root + "/../pyproject.toml")
                 self.assertEqual(error.exception.code, 404)

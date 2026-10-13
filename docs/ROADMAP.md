@@ -1,13 +1,14 @@
 # Roadmap
 
-**Temporary feature freeze.** Only bug fixes, test coverage, security hardening,
-accurate documentation and quality automation are accepted until the hardening
-gates pass. Keep SQLite and the dependency-free runtime. Blockchain and new
-product capabilities require a demonstrated need after this freeze.
+The v0.1.0 scope is local provenance, replay, attribution, bounded
+counterfactuals and regression testing, with explicitly synthetic examples.
+The release preparation supersedes the earlier hardening-only freeze to add
+the requested financial case study, measurements and distribution qualification.
+SQLite and zero runtime Python dependencies remain architectural constraints.
+Future functionality must improve observe → reproduce → compare → diagnose.
 
-Current version: 0.1 development baseline with the main local workflow already
-implemented. These milestones describe release-quality gates, not claims that
-later features have been validated in production.
+These milestones are qualification goals, not claims that future features
+are production-validated. [Current limitations](LIMITATIONS.md).
 
 - **0.1:** qualify SDK, span lifecycle, atomic SQLite storage, canonical hashing,
   list/show/export and immutable original state; define schema migration policy.

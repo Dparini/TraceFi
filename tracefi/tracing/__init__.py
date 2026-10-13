@@ -24,6 +24,13 @@ def identifier(prefix: str) -> str:
 
 class Span:
     def __init__(self, decision: DecisionTrace, name: str, kind: str | None = None) -> None:
+        if (
+            not isinstance(name, str)
+            or not name
+            or kind is not None
+            and (not isinstance(kind, str) or not kind)
+        ):
+            raise ValueError("Span name and kind must be nonempty strings")
         self.decision = decision
         self.record: dict[str, Any] = {
             "id": identifier("sp"),

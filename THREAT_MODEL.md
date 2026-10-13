@@ -23,7 +23,7 @@ financial correctness. Collection does not enforce the application's policy.
 | Incorrect timestamps | Wrong apparent order or misleading freshness | UTC-aware normalized timestamps; naive Python datetime rejection; monotonic span durations; oracle age rules | Host clock and producer-provided freshness may be wrong; timestamp strings outside the recognized format are plain text; no trusted external time source or monotonic wall-time guarantee |
 | Model non-determinism | Divergent replays and unreliable counterfactual attribution | Explicit adapters; full proposal diff; repeated baseline/intervention checks; document sampling limits | One match is insufficient; temperature zero is not guaranteed determinism; statistical replay sampling is future work |
 | Incomplete context | Misleading reproduction or missed failure | Record configurations, portfolio and retrieval contract; expose missing stages; refuse exact replay of redacted inputs | Instrumentation can omit hidden dependencies, code revisions, tool state or relevant evidence; no automatic completeness proof |
-| Poisoned datasets | Biased regression conclusions, denial of service | Synthetic checked-in fixtures, deterministic CI, compare both agents on identical scenarios; no trace-driven code loading | Bounded JSON rejects oversized/deep individual files; total dataset file count, total work and provenance signatures remain unbounded or unauthenticated |
+| Poisoned datasets | Biased regression conclusions, denial of service | Synthetic checked-in fixtures, deterministic CI, compare both agents on identical scenarios; no trace-driven code loading | Bounded JSON and dataset count/total-byte limits reject oversized inputs; filesystem scan time, total DB size and provenance signatures remain unbounded or unauthenticated |
 | False failure attribution | Wrong root-cause claims or misplaced confidence | Separate observed conditions from likely interpretations; multiple findings; unknown when evidence is missing; losses alone are insufficient | Rule coverage is incomplete; stale data may be irrelevant; sufficiency experiments cannot establish global causal truth |
 | Local dashboard exposure | Another site or process reads financial traces | Bind 127.0.0.1; Host and Origin allowlists; no CORS; read-only GET API and experiments restricted to finite recorded financial inputs and the built-in deterministic adapter; CSP and no-store headers | Local processes, extensions and same-origin compromise can read data; dashboard has no authentication and must not be reverse-proxied publicly |
 | Adapter code execution | Arbitrary local Python behavior | Adapter selected explicitly on CLI; never derived from trace metadata | `module:factory` executes trusted-by-user code; dependencies and Ollama server are separate trust boundaries |
@@ -51,3 +51,20 @@ possible input paths or claim adversarial robustness.
 The [2026-10-06 manual review](docs/SECURITY_REVIEW.md) records resolved
 findings, their regression tests and remaining adapter, input and local-server
 risks. See [API limits](docs/API.md#bounded-json-and-numeric-precision).
+
+## v0.1.0 review additions
+
+- Atomic non-overwriting exports and final DB symlink refusal reduce accidental
+  file destruction. Parent-directory owners remain trusted; no race-proof
+  filesystem or authenticated local-client boundary is claimed.
+- Duplicate Host/Origin headers are rejected. Real Chromium tests cover escaped
+  malicious metadata, redaction, filters and financial experiments.
+- Read-only inspection does not initialize a missing DB. Span parent graphs are
+  validated independently of matching payload hashes.
+- Dataset reads/counts/bytes are bounded; adapters and concurrent HTTP workload
+  still have no global execution budget.
+- Explicit unsuccessful simulations, repeated-output consistency and isolated
+  evaluation inputs avoid collapsing distinct operational evidence.
+
+See [release security guide](docs/SECURITY.md) and
+[release validation](docs/RELEASE_VALIDATION.md) for dated results and residual risks.

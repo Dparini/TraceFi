@@ -9,6 +9,32 @@ from tracefi.models import ModelAdapter, decision_state, observed_decision
 from tracefi.models.deterministic import finite_number
 from tracefi.security import Redactor, contains_redacted
 
+ERROR_MESSAGES = {
+    "CF01": "Input path must be a string",
+    "CF02": "Input path requires a recorded state root and nonempty field names",
+    "CF03": "Unknown input path",
+    "CF04": "Input path is not an object",
+    "CF05": "Adapter must repeatedly reproduce the original decision",
+    "CF06": "Counterfactual state contains redacted values",
+    "CF07": "Adapter produced unstable counterfactual decisions",
+    "CF08": "Boundary requires finite low < high",
+    "CF09": "Iterations must be an integer between 1 and 60",
+    "CF10": "Boundary feature must be present in recorded state",
+    "CF11": "Boundary feature must be a finite numeric value",
+    "CF12": "More than two decisions observed; a binary boundary is ambiguous",
+    "CF13": "Dotted/empty object keys are ambiguous in counterfactual paths",
+    "CF14": "Non-monotonic or multiple decision transitions sampled; boundary unsupported",
+}
+
+
+class CounterfactualError(ValueError):
+    """Static diagnostic codes keep adapter exception messages out of CLI output."""
+
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(ERROR_MESSAGES.get(code, "Counterfactual unavailable"))
+
+
 _STATE_FIELDS = {"context", "portfolio", "agent_configuration", "policy_configuration"}
 
 
@@ -22,17 +48,17 @@ def _signature(proposal: dict[str, Any]) -> str:
 
 def set_path(state: dict[str, Any], path: str, value: Any, present: bool = True) -> None:
     if not isinstance(path, str):
-        raise ValueError("Input path must be a string")
+        raise CounterfactualError("CF01")
     parts = path.split(".")
     if len(parts) < 2 or any(not part for part in parts) or parts[0] not in _STATE_FIELDS:
-        raise ValueError("Input path requires a recorded state root and nonempty field names")
+        raise CounterfactualError("CF02")
     current = state
     for part in parts[:-1]:
         if not isinstance(current, dict) or part not in current:
-            raise ValueError("Unknown input path")
+            raise CounterfactualError("CF03")
         current = current[part]
     if not isinstance(current, dict):
-        raise ValueError("Input path is not an object")
+        raise CounterfactualError("CF04")
     if present:
         current[parts[-1]] = deepcopy(value)
     else:
@@ -43,7 +69,7 @@ def _reproduce(trace: dict[str, Any], adapter: ModelAdapter) -> dict[str, Any]:
     first = replay(trace, adapter)
     second = replay(trace, adapter)
     if not first["equal"] or not second["equal"]:
-        raise ValueError("Adapter must repeatedly reproduce the original decision")
+        raise CounterfactualError("CF05")
     return dict(first["original"])
 
 
@@ -53,11 +79,11 @@ def _experiment(
     keys = trace.get("redaction_keys", ())
     cleaned = snapshot(Redactor(keys)(state))
     if contains_redacted(cleaned):
-        raise ValueError("Counterfactual state contains redacted values")
+        raise CounterfactualError("CF06")
     first = observed_decision(adapter, snapshot(cleaned), keys)
     second = observed_decision(adapter, snapshot(cleaned), keys)
     if state_hash(first) != state_hash(second):
-        raise ValueError("Adapter produced unstable counterfactual decisions")
+        raise CounterfactualError("CF07")
     return first
 
 
@@ -85,10 +111,12 @@ def boundary(
     high: int | float,
     iterations: int = 24,
 ) -> dict[str, Any]:
+    if not isinstance(path, str):
+        raise CounterfactualError("CF01")
     if not finite_number(low) or not finite_number(high) or low >= high:
-        raise ValueError("Boundary requires finite low < high")
+        raise CounterfactualError("CF08")
     if isinstance(iterations, bool) or not isinstance(iterations, int) or not 1 <= iterations <= 60:
-        raise ValueError("Iterations must be an integer between 1 and 60")
+        raise CounterfactualError("CF09")
     _reproduce(trace, adapter)
     state = decision_state(trace)
 
@@ -97,14 +125,37 @@ def boundary(
         set_path(modified, path, value)
         return action_signature(_experiment(trace, adapter, modified))
 
-    left, right = decide(low), decide(high)
-    left_hash, right_hash = state_hash(left), state_hash(right)
+    current: Any = state
+    for part in path.split("."):
+        if not isinstance(current, dict) or part not in current:
+            raise CounterfactualError("CF10")
+        current = current[part]
+    if not finite_number(current):
+        raise CounterfactualError("CF11")
+    # A finite grid can falsify, but cannot prove, the monotonicity assumption.
+    samples = sorted({low, high, *(low * (1 - i / 16) + high * (i / 16) for i in range(1, 16))})
+    samples = [value for value in samples if low <= value <= high and finite_number(value)]
+    decisions = [decide(value) for value in samples]
+    signatures = [state_hash(value) for value in decisions]
+    if len(set(signatures)) > 2:
+        raise CounterfactualError("CF12")
+    transitions = sum(a != b for a, b in zip(signatures[:-1], signatures[1:], strict=True))
+    if transitions > 1:
+        raise CounterfactualError("CF14")
+    left, right = decisions[0], decisions[-1]
+    left_hash, right_hash = signatures[0], signatures[-1]
+    diagnostics = {
+        "samples": len(samples),
+        "sampled_transitions": transitions,
+        "monotonicity_proven": False,
+    }
     if left_hash == right_hash:
         return {
             "feature": path,
             "boundary_found": False,
             "interval": [low, high],
-            "limitations": "Equal endpoints do not exclude changes inside the interval.",
+            "diagnostics": diagnostics,
+            "limitations": "No transition sampled. Equal samples do not exclude unseen interior changes.",
         }
     for _ in range(iterations):
         # Splitting each operand avoids overflow when both endpoints are large.
@@ -113,7 +164,7 @@ def boundary(
             break  # Adjacent representable numbers cannot be subdivided further.
         signature = state_hash(decide(middle))
         if signature not in (left_hash, right_hash):
-            raise ValueError("More than two decisions observed; a binary boundary is ambiguous")
+            raise CounterfactualError("CF12")
         if signature == left_hash:
             low = middle
         else:
@@ -122,6 +173,7 @@ def boundary(
         "feature": path,
         "boundary_found": True,
         "interval": [low, high],
+        "diagnostics": diagnostics,
         "below": left,
         "above": right,
         "limitations": "Local bracket under a monotonic-transition assumption. Repeated matching calls do not prove determinism or a global boundary.",
@@ -131,7 +183,7 @@ def boundary(
 def _reject_ambiguous_keys(value: Any) -> None:
     if isinstance(value, dict):
         if any(not key or "." in key for key in value):
-            raise ValueError("Dotted/empty object keys are ambiguous in counterfactual paths")
+            raise CounterfactualError("CF13")
         for part in value.values():
             _reject_ambiguous_keys(part)
     # Lists are atomic leaves, never traversed by dot paths.

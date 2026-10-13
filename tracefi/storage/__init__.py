@@ -30,16 +30,20 @@ class SQLiteStorage:
         self, path: str | Path = ".tracefi/traces.sqlite3", *, read_only: bool = False
     ) -> None:
         self.path = str(path)
+        if self.path != ":memory:" and Path(path).is_symlink():
+            raise ValueError("Database symlinks are unsupported")
         if read_only:
             if self.path == ":memory:":
                 raise ValueError("An in-memory database cannot be opened read-only")
+            if not Path(path).is_file():
+                raise FileNotFoundError("Database does not exist")
             uri = Path(path).resolve().as_uri() + "?mode=ro"
             self.connection = sqlite3.connect(uri, uri=True)
         else:
             if self.path != ":memory:":
                 target = Path(path)
                 target.parent.mkdir(parents=True, exist_ok=True)
-                fd = os.open(target, os.O_CREAT | os.O_RDWR, 0o600)
+                fd = os.open(target, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
                 os.close(fd)
             self.connection = sqlite3.connect(self.path)
         self.connection.execute("PRAGMA foreign_keys = ON")
@@ -164,6 +168,16 @@ class SQLiteStorage:
         expected = {span["id"]: span for span in trace["spans"]}
         if len(expected) != len(trace["spans"]) or canonicalize(actual) != canonicalize(expected):
             raise IntegrityError("Span mismatch")
+        resolved: set[str] = set()
+        for span_id in expected:
+            visited: set[str] = set()
+            current = span_id
+            while current is not None and current not in resolved:
+                if current not in expected or current in visited:
+                    raise IntegrityError("Invalid span parent graph")
+                visited.add(current)
+                current = expected[current]["parent_id"]
+            resolved.update(visited)
         artifacts = self.connection.execute(
             "SELECT id,type,hash,payload FROM artifacts WHERE trace_id=?", (trace["trace_id"],)
         ).fetchall()
@@ -185,6 +199,8 @@ class SQLiteStorage:
         result = []
         for (trace_id,) in ids:
             trace = self.get(trace_id)
+            proposal = trace.get("proposal")
+            proposal = proposal if isinstance(proposal, dict) else {}
             result.append(
                 {
                     "id": trace["trace_id"],
@@ -192,6 +208,9 @@ class SQLiteStorage:
                     "version": trace["agent"]["version"],
                     "timestamp": trace["timestamp"],
                     "status": trace["status"],
+                    "action": proposal.get("action"),
+                    "amount": proposal.get("amount"),
+                    "asset": proposal.get("asset"),
                 }
             )
         return result
