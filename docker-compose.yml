@@ -1,7 +1,0 @@
-# Optional offline-runtime CLI container; no services or published ports.
-services:
-  tracefi:
-    build: .
-    command: ["demo"]
-    volumes:
-      - ./.tracefi:/workspace/.tracefi

@@ -57,7 +57,6 @@ addopts = "--strict-config --strict-markers"
 [tool.mutmut]
 source_paths = ["tracefi"]
 only_mutate = ["tracefi/hashing/*.py", "tracefi/security/*.py", "tracefi/counterfactual/*.py", "tracefi/analysis/*.py", "tracefi/storage/*.py"]
-also_copy = ["scenarios"]
 pytest_add_cli_args = ["-q", "--ignore=tests/test_dashboard.py", "-k", "not attribution_stress_grid"]
 pytest_add_cli_args_test_selection = ["tests"]
 process_isolation = "forkserver"

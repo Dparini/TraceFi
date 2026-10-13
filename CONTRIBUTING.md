@@ -32,10 +32,16 @@ mutmut results
 Review surviving logic mutants; message-only mutations and equivalent changes
 require explicit justification, not a blanket score target. Mutation scope covers
 hashing, redaction/export, attribution/replay, boundary search and SQLite.
-Historical results are preserved; [release validation](docs/RELEASE_VALIDATION.md)
+Historical results are preserved in Git history; [release validation](docs/RELEASE_VALIDATION.md)
 identifies the actually exercised scope.
 
 ## Browser and packaging
+
+The dashboard build requires Node 20.19+ or 22.12+ (Vite 7 requirement).
+PostCSS is a transitive Vite build dependency; do not edit `node_modules` or
+install a separate copy to resolve editor diagnostics. Use `npm ci` to restore
+the locked dependency tree and `npm run build` to verify it. The packaged
+Python dashboard does not require Node at runtime.
 
 ```bash
 cd dashboard
@@ -56,6 +62,10 @@ installs outside the source tree. Editable bootstrap downloads free build tools;
 installed demos have no network requirement. Commit the intended changes before
 using this clean-clone gate. Dist directories, local DBs, mutation caches and
 virtual environments are ignored and must not be committed.
+
+The SDK example in `examples/rule_agent/main.py` demonstrates capture, policy
+checks and synthetic execution. Generic scenarios have one source of truth in
+`tracefi/datasets/`; `eval` and `run` use them by default.
 
 ## Contracts and releases
 

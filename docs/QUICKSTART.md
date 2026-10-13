@@ -39,10 +39,10 @@ Keep parent directories trusted. There is no schema migration that rewrites old 
 - `counterfactual TRACE_ID --adapter NAME --feature PATH --value JSON`.
   Use `--low NUMBER --high NUMBER` instead of `--value` for a numerical bracket.
 - `why-change TRACE_A TRACE_B --adapter NAME`: conditional single-change tests.
-- `eval --baseline NAME --candidate NAME --dataset scenarios/`.
+- `eval --baseline NAME --candidate NAME --dataset tracefi/datasets/`.
   `--dataset lending` selects the packaged lending fixtures; omitting the option
   selects the 30 packaged generic scenarios.
-- `run --dataset scenarios/ --adapter deterministic`: capture explicitly injected
+- `run --dataset tracefi/datasets/ --adapter deterministic`: capture explicitly injected
   generic test faults. This runner uses generic synthetic execution, not the richer
   lending simulator; use `demo --case-study` for that investigation.
 - `export TRACE_ID --format json|html --output NEW_FILE`: atomic private output,

@@ -4,7 +4,6 @@ recursive-include examples *.py
 recursive-include benchmarks *.py
 recursive-include scripts *.py
 recursive-include tests *.py
-recursive-include scenarios *.json
 recursive-include tracefi *.json *.html *.js *.css
 prune mutants
 prune dashboard/node_modules

@@ -82,14 +82,6 @@ class LendingAgent:
         }
 
 
-def lending_v1() -> LendingAgent:
-    return LendingAgent("1")
-
-
-def lending_v2() -> LendingAgent:
-    return LendingAgent("2")
-
-
 def assess(proposal: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     """Metrics derived independently from recorded inputs, not model self-report."""
     if not valid_proposal(proposal) or proposal["asset"] != "USDC":

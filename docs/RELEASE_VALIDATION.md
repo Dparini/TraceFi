@@ -40,8 +40,9 @@ correctness or V1 readiness.
 
 ## Mutation evidence
 
-The historical complete run and survivors remain in `mutation-results.json` and
-`mutation-survivors.txt`, explicitly dated before this release work. The release
+The historical complete run and survivors remain available in the
+[pre-release audit](https://github.com/Dparini/TraceFi/blob/865d2ff/docs/HARDENING.md)
+and its linked inventories. The release
 run prioritizes policy thresholds, replay, redaction/atomic exports, boundary
 search and SQLite verification. It uses the 40-example property profile and
 excludes browser/HTTP integration and the long corruption grid. Selected functions

@@ -68,5 +68,5 @@ available private security-reporting channel when enabled; otherwise contact the
 maintainer using their published GitHub contact method before sharing sensitive
 exploit details. No unconfigured email or reporting capability is promised.
 
-See [manual review](SECURITY_REVIEW.md), [release validation](RELEASE_NOTES.md),
+See [release validation](RELEASE_VALIDATION.md), [release notes](RELEASE_NOTES.md),
 and [limitations](LIMITATIONS.md). No certification or formal verification is claimed.

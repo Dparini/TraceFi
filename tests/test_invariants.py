@@ -242,7 +242,7 @@ class TraceTests(unittest.TestCase):
     def test_scenario_fault_attribution(self):
         from tracefi.evals import run_scenarios
 
-        scenarios = load_scenarios(Path(__file__).parents[1] / "scenarios")
+        scenarios = load_scenarios(Path(__file__).parents[1] / "tracefi" / "datasets")
         ids = run_scenarios(self.collector, load_adapter("deterministic"), scenarios)
         reports = {
             scenario["id"]: analyze(self.collector.storage.get(trace_id))
@@ -271,16 +271,8 @@ class TraceTests(unittest.TestCase):
         self.assertNotIn("OUTPUT_SENTINEL", json.dumps(report))
         self.assertEqual(report["replayed"]["private_key"], "[REDACTED]")
 
-    def test_packaged_scenarios_match_repository(self):
-        source = Path(__file__).parents[1] / "scenarios"
-        packaged = Path(__file__).parents[1] / "tracefi" / "datasets"
-        self.assertEqual(
-            {str(p.relative_to(source)): p.read_bytes() for p in source.rglob("*.json")},
-            {str(p.relative_to(packaged)): p.read_bytes() for p in packaged.rglob("*.json")},
-        )
-
     def test_regression_dataset(self):
-        scenarios = load_scenarios(Path(__file__).parents[1] / "scenarios")
+        scenarios = load_scenarios(Path(__file__).parents[1] / "tracefi" / "datasets")
         self.assertEqual(len(scenarios), 30)
         report = compare(load_adapter("agent-v1"), load_adapter("agent-v2"), scenarios)
         self.assertEqual(report["baseline"]["metrics"]["valid_decisions"], 30)
