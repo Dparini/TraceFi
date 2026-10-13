@@ -30,8 +30,11 @@ correctness or V1 readiness.
   26.1.2 to 26.2.1 resolved it and the follow-up audit reported none. This is a
   dated advisory check, not a continuing assurance. TraceFi is unpublished and
   has no third-party runtime Python dependencies.
-- A source distribution and universal wheel built successfully. Distribution
-  contents and independent installation qualification are qualified by the clean committed-clone gate described below.
+- Clean committed clone of `06d7938`: source distribution and universal wheel
+  built, the sdist rebuilt into a wheel, and isolated wheel/editable installs passed.
+  Verified CLI help, missing/fresh SQLite databases, both offline demos, replay,
+  counterfactuals, configured regression exit codes, JSON/HTML export semantics
+  and dashboard startup outside the source checkout. Runtime dependencies: none.
 - [Measured benchmarks](BENCHMARKS.md) include 100 repetitions per latency and
   1,000/10,000-trace storage sizes, with raw variability and hardware information.
 
