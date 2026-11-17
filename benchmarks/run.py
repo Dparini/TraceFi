@@ -16,11 +16,14 @@ from uuid import uuid4
 
 import tracefi
 from tracefi import TraceFi
-from tracefi.analysis import replay
-from tracefi.cli.render import export_html
-from tracefi.models import decision_state, load_adapter
+from tracefi.counterfactual import replay
+from tracefi.registry import load_adapter
+from tracefi.reports import export_html
 from tracefi.security.files import write_export
 from tracefi.storage import SQLiteStorage
+
+WARMUPS = 5
+RETRIEVAL_LABELS = 10
 
 
 class DiscardStorage:
@@ -45,10 +48,10 @@ def capture(collector):
         trace.capture_retrieval(
             {
                 "included_features": ["apy", "liquidity", "price"],
-                "documents": [f"local-record-{i}" for i in range(10)],
+                "documents": [f"local-record-{i}" for i in range(RETRIEVAL_LABELS)],
             }
         )
-        trace.capture_decision(load_adapter("deterministic").decide(decision_state(trace.record)))
+        trace.capture_decision(load_adapter("deterministic").decide(trace.state()))
         trace.capture_policy({"approved": True})
         trace.capture_simulation({"success": True, "mode": "synthetic"})
         trace.capture_execution({"status": "success", "mode": "synthetic"})
@@ -76,7 +79,7 @@ def summary(values):
 
 def measured(function, repetitions):
     values = []
-    for _ in range(5):
+    for _ in range(WARMUPS):
         function()
     for _ in range(repetitions):
         start = perf_counter_ns()
@@ -171,11 +174,11 @@ def main():
         "hardware": hardware(),
         "methodology": {
             "clock": "perf_counter_ns",
-            "warmups": 5,
+            "warmups": WARMUPS,
             "repetitions": args.repetitions,
             "sqlite_journal_mode": journal_mode,
             "sqlite_synchronous": synchronous,
-            "dataset": "Synthetic USDC decision, 6 capture spans, 10 retrieval labels; same payload with fresh trace/span UUIDs.",
+            "dataset": f"Synthetic USDC decision, {len(fixture['spans'])} capture spans, {RETRIEVAL_LABELS} retrieval labels; same payload with fresh trace/span UUIDs.",
             "serialized_trace_bytes": len(json.dumps(fixture).encode()),
             "write_scope": "Fresh UUID/deepcopy preparation plus canonicalization, hashing and committed SQLite transaction; no network.",
             "read_scope": "Strict JSON parsing included in both; verified reads additionally verify all stored snapshots/spans/artifacts.",

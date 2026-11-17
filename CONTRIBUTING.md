@@ -15,7 +15,7 @@ ruff check tracefi tests scripts examples benchmarks
 ruff format --check tracefi tests scripts examples benchmarks
 mypy tracefi
 python -m pytest -q
-HYPOTHESIS_PROFILE=stress python -m pytest -q tests/test_properties.py tests/test_release_hardening.py
+HYPOTHESIS_PROFILE=stress python -m pytest -q --ignore=tests/test_dashboard.py
 python -m build
 ```
 

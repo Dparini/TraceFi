@@ -4,10 +4,11 @@ import hashlib
 import json
 import math
 import re
+import sys
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any
+from typing import Any, TypeGuard
 
 CANONICAL_VERSION = "tracefi-json-v1"
 SUPPORTED_CANONICAL_VERSIONS = {CANONICAL_VERSION, "agenttrace-json-v1"}
@@ -20,10 +21,23 @@ _TIMESTAMP = re.compile(
 )
 
 
-def _timestamp(value: datetime) -> str:
+def format_timestamp(value: datetime) -> str:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("Timestamps must include a timezone")
     return value.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+
+def now() -> str:
+    return format_timestamp(datetime.now(timezone.utc))
+
+
+def finite_number(value: Any) -> TypeGuard[int | float]:
+    """A non-boolean JSON number within the finite float range."""
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return -sys.float_info.max <= value <= sys.float_info.max
+    return isinstance(value, float) and math.isfinite(value)
 
 
 def canonicalize(value: Any) -> bytes:
@@ -74,7 +88,7 @@ def canonicalize(value: Any) -> bytes:
             append(result.rstrip("0").rstrip(".") if "." in result else result)
         elif isinstance(item, (str, datetime)):
             if isinstance(item, datetime):
-                item = _timestamp(item)
+                item = format_timestamp(item)
             if len(item) > MAX_BYTES:
                 raise ValueError("String exceeds the byte limit")
             match = _TIMESTAMP.fullmatch(item)
@@ -85,7 +99,7 @@ def canonicalize(value: Any) -> bytes:
                 if fraction:
                     start, end = match.span("fraction")
                     item = item[:start] + fraction[:6].ljust(6, "0") + item[end:]
-                item = _timestamp(datetime.fromisoformat(item.replace("Z", "+00:00")))
+                item = format_timestamp(datetime.fromisoformat(item.replace("Z", "+00:00")))
             append(json.dumps(item, ensure_ascii=False))
         elif isinstance(item, (Mapping, list, tuple)):
             identity = id(item)

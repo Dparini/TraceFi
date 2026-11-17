@@ -13,6 +13,8 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
+import tracefi
+
 
 def run(*args, cwd=None, env=None, expected=0):
     result = subprocess.run(args, cwd=cwd, env=env, text=True, capture_output=True)
@@ -57,7 +59,7 @@ def qualify(cli, work, env):
         return run(str(cli), *args, cwd=work, env=env, expected=expected)
 
     command("--help")
-    assert command("--version") == "TraceFi 0.1.0"
+    assert command("--version") == f"TraceFi {tracefi.__version__}"
     for name in (
         "demo",
         "list",

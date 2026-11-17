@@ -1,13 +1,12 @@
-"""Bounded one-variable experiments. They never execute financial actions."""
+"""Replay and bounded one-variable experiments. They never execute financial actions."""
 
 from copy import deepcopy
 from typing import Any
 
-from tracefi.analysis import changed_paths, replay
-from tracefi.hashing import snapshot, state_hash
-from tracefi.models import ModelAdapter, decision_state, observed_decision
-from tracefi.models.deterministic import finite_number
-from tracefi.security import Redactor, contains_redacted
+from tracefi.hashing import finite_number, snapshot, state_hash
+from tracefi.models import ModelAdapter, observed_decision
+from tracefi.schema import STATE_FIELDS, changed_paths, clean, decision_state, trace_redactor
+from tracefi.security import contains_redacted
 
 ERROR_MESSAGES = {
     "CF01": "Input path must be a string",
@@ -32,10 +31,27 @@ class CounterfactualError(ValueError):
 
     def __init__(self, code: str) -> None:
         self.code = code
-        super().__init__(ERROR_MESSAGES.get(code, "Counterfactual unavailable"))
+        super().__init__(ERROR_MESSAGES[code])
 
 
-_STATE_FIELDS = {"context", "portfolio", "agent_configuration", "policy_configuration"}
+def replay(trace: dict[str, Any], adapter: ModelAdapter) -> dict[str, Any]:
+    original = clean(trace, trace.get("proposal"))
+    if not isinstance(original, dict):
+        raise ValueError("Trace has no recorded decision object")
+    state = decision_state(trace)
+    if contains_redacted(state):
+        raise ValueError("Replay state contains redacted values; exact reproduction is unavailable")
+    result = observed_decision(adapter, state, trace_redactor(trace))
+    equal = state_hash(original) == state_hash(result)
+    return {
+        "trace_id": trace["trace_id"],
+        "agent": clean(trace, trace["agent"]),
+        "original": original,
+        "replayed": result,
+        "equal": equal,
+        "interpretation": "One replay matched" if equal else "Decision divergence",
+        "limitations": "A matching replay is not proof of determinism; code, dependencies and model must also match.",
+    }
 
 
 def action_signature(proposal: dict[str, Any]) -> dict[str, Any]:
@@ -50,7 +66,7 @@ def set_path(state: dict[str, Any], path: str, value: Any, present: bool = True)
     if not isinstance(path, str):
         raise CounterfactualError("CF01")
     parts = path.split(".")
-    if len(parts) < 2 or any(not part for part in parts) or parts[0] not in _STATE_FIELDS:
+    if len(parts) < 2 or any(not part for part in parts) or parts[0] not in STATE_FIELDS:
         raise CounterfactualError("CF02")
     current = state
     for part in parts[:-1]:
@@ -65,6 +81,16 @@ def set_path(state: dict[str, Any], path: str, value: Any, present: bool = True)
         current.pop(parts[-1], None)
 
 
+def resolve_path(state: dict[str, Any], path: str) -> tuple[bool, Any]:
+    """Whether a dot path is recorded in the state, and its value."""
+    current: Any = state
+    for part in path.split("."):
+        if not isinstance(current, dict) or part not in current:
+            return False, None
+        current = current[part]
+    return True, current
+
+
 def _reproduce(trace: dict[str, Any], adapter: ModelAdapter) -> dict[str, Any]:
     first = replay(trace, adapter)
     second = replay(trace, adapter)
@@ -76,12 +102,12 @@ def _reproduce(trace: dict[str, Any], adapter: ModelAdapter) -> dict[str, Any]:
 def _experiment(
     trace: dict[str, Any], adapter: ModelAdapter, state: dict[str, Any]
 ) -> dict[str, Any]:
-    keys = trace.get("redaction_keys", ())
-    cleaned = snapshot(Redactor(keys)(state))
+    redact = trace_redactor(trace)
+    cleaned = snapshot(redact(state))
     if contains_redacted(cleaned):
         raise CounterfactualError("CF06")
-    first = observed_decision(adapter, snapshot(cleaned), keys)
-    second = observed_decision(adapter, snapshot(cleaned), keys)
+    first = observed_decision(adapter, snapshot(cleaned), redact)
+    second = observed_decision(adapter, snapshot(cleaned), redact)
     if state_hash(first) != state_hash(second):
         raise CounterfactualError("CF07")
     return first
@@ -100,6 +126,7 @@ def counterfactual(
         "original": original,
         "counterfactual": result,
         "decision_changed": _signature(result) != _signature(original),
+        "limitations": "One-variable experiment on the selected adapter. No transaction, policy recheck or financial outcome is simulated.",
     }
 
 
@@ -125,14 +152,11 @@ def boundary(
         set_path(modified, path, value)
         return action_signature(_experiment(trace, adapter, modified))
 
-    current: Any = state
-    for part in path.split("."):
-        if not isinstance(current, dict) or part not in current:
-            raise CounterfactualError("CF10")
-        current = current[part]
+    present, current = resolve_path(state, path)
+    if not present:
+        raise CounterfactualError("CF10")
     if not finite_number(current):
         raise CounterfactualError("CF11")
-    # A finite grid can falsify, but cannot prove, the monotonicity assumption.
     samples = sorted({low, high, *(low * (1 - i / 16) + high * (i / 16) for i in range(1, 16))})
     samples = [value for value in samples if low <= value <= high and finite_number(value)]
     decisions = [decide(value) for value in samples]
@@ -158,10 +182,9 @@ def boundary(
             "limitations": "No transition sampled. Equal samples do not exclude unseen interior changes.",
         }
     for _ in range(iterations):
-        # Splitting each operand avoids overflow when both endpoints are large.
         middle = low / 2 + high / 2
         if not low < middle < high:
-            break  # Adjacent representable numbers cannot be subdivided further.
+            break
         signature = state_hash(decide(middle))
         if signature not in (left_hash, right_hash):
             raise CounterfactualError("CF12")
@@ -186,7 +209,6 @@ def _reject_ambiguous_keys(value: Any) -> None:
             raise CounterfactualError("CF13")
         for part in value.values():
             _reject_ambiguous_keys(part)
-    # Lists are atomic leaves, never traversed by dot paths.
 
 
 def why_change(a: dict[str, Any], b: dict[str, Any], adapter: ModelAdapter) -> dict[str, Any]:

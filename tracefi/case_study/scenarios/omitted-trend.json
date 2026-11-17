@@ -53,5 +53,18 @@
       "liquidity_trend_24h": -0.41
     }
   },
-  "metrics_model": "synthetic-lending-v1"
+  "metrics_model": "synthetic-lending-v1",
+  "omission": "Synthetic retrieval fixture drops Protocol B liquidity trend; agent has an explicit unknown.",
+  "outcome": {
+    "pnl": -1821,
+    "synthetic": true,
+    "horizon_days": 7,
+    "components_usdc": {
+      "interest": 32,
+      "liquidity_exit_haircut": -1835,
+      "transaction_cost": -18
+    },
+    "liquidity_change": -0.41,
+    "assumption": "A predeclared stressed exit haircut, not a forecast or historical result."
+  }
 }

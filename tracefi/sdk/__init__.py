@@ -1,25 +1,35 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Protocol
 
-from tracefi.security import Redactor, Secret
-from tracefi.storage import SQLiteStorage
-from tracefi.tracing import DecisionTrace
+from tracefi.schema import redactor
+from tracefi.security import Secret
+from tracefi.storage import DEFAULT_DB, SQLiteStorage
+from tracefi.tracing import DecisionTrace, TraceSink
+
+
+class Storage(TraceSink, Protocol):
+    def get(self, trace_id: str = "latest", verify: bool = True) -> dict[str, Any]: ...
+
+    def list(self, limit: int = 50) -> list[dict[str, Any]]: ...
+
+    def close(self) -> None: ...
 
 
 class TraceFi:
     def __init__(
         self,
-        db: str | Path = ".tracefi/traces.sqlite3",
+        db: str | Path = DEFAULT_DB,
         redact: Iterable[str] = (),
-        storage: Any = None,
+        storage: Storage | None = None,
     ) -> None:
-        self.redactor = Redactor(redact)
-        self.storage = storage if storage is not None else SQLiteStorage(db)
+        self.redactor = redactor(redact)
+        self.storage: Storage = storage if storage is not None else SQLiteStorage(db)
 
     def decision(self, agent: str, version: str = "unknown", **kwargs: Any) -> DecisionTrace:
-        return DecisionTrace(self, agent, version, **kwargs)
+        return DecisionTrace(self.storage, self.redactor, agent, version, **kwargs)
 
     @staticmethod
     def secret(value: Any) -> Secret:

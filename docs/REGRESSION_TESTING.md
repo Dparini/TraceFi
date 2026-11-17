@@ -23,9 +23,10 @@ summed file sizes; symlink files and duplicate/non-string IDs are rejected.
 
 Validity checks the documented action/asset/amount contract, including HOLD amount
 zero and rejecting booleans. Consistency counts two identical complete outputs;
-it is not global determinism. Unsafe proposals/policy rejections count deterministic
-control failures. No real execution occurs, so execution policy violations are
-zero by construction. Average proposed exposure is not a calibrated risk score.
+it is not global determinism. Unsafe proposals count proposals the deterministic
+policy rejects. No real execution occurs. Average proposed exposure is not a
+calibrated risk score. A valid proposal that a scenario's metrics model cannot
+assess keeps its other metrics and records `financial_metrics_error`.
 
 Lending fixtures explicitly opt into `synthetic-lending-v1` metric assessment,
 derived from inputs rather than agent self-report. Mean maximum protocol exposure

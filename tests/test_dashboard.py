@@ -12,6 +12,65 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+import pytest
+
+from tests.helpers import make_trace
+from tracefi import TraceFi
+from tracefi.dashboard import experiment
+from tracefi.demo import run_case_study
+from tracefi.models.deterministic import DeterministicAgent
+from tracefi.schema import decision_state
+
+
+def lending_trace():
+    with TraceFi(db=":memory:") as collector:
+        return collector.storage.get(run_case_study(collector)["trace_id"])
+
+
+def query(adapter, feature, value):
+    return urlencode({"adapter": adapter, "feature": feature, "value": value})
+
+
+def test_experiment_may_add_an_omitted_optional_input():
+    result = experiment(
+        lending_trace(),
+        query("lending-v1", "context.markets.protocol_b.liquidity_trend_24h", "-0.41"),
+    )
+    assert result["decision_changed"]
+
+
+def deterministic_trace_without_apy():
+    with TraceFi(db=":memory:") as collector:
+        with collector.decision("rule-agent", "1", portfolio={"USDC": 100_000}) as trace:
+            trace.capture_context({"liquidity": 21_000_000, "price": 1, "oracle_age_seconds": 20})
+            trace.capture_decision(DeterministicAgent().decide(trace.state()))
+        return collector.storage.get(trace.trace_id)
+
+
+def test_unrecorded_required_input_would_otherwise_change_the_decision():
+    trace = deterministic_trace_without_apy()
+    trace["context"]["apy"] = 0.067
+    assert DeterministicAgent().decide(decision_state(trace))["action"] == "SUPPLY"
+
+
+@pytest.mark.parametrize(
+    "recorded,adapter,feature",
+    [
+        (lending_trace, "lending-v1", "context.markets.protocol_c.supply_apy"),
+        (lending_trace, "lending-v1", "context.apy"),
+        (lending_trace, "deterministic", "context.markets.protocol_b.supply_apy"),
+        (make_trace, "lending-v1", "context.markets.protocol_b.liquidity_trend_24h"),
+        (make_trace, "deterministic", "context.unused"),
+        (make_trace, "agent-v1", "context.liquidity"),
+        (deterministic_trace_without_apy, "deterministic", "context.apy"),
+    ],
+)
+def test_experiment_refuses_inputs_the_adapter_does_not_read_or_were_not_recorded(
+    recorded, adapter, feature
+):
+    with pytest.raises(ValueError):
+        experiment(recorded(), query(adapter, feature, "1"))
+
 
 class DashboardTests(unittest.TestCase):
     def test_local_api_and_origin_guard(self):
