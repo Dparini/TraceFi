@@ -1,159 +1,38 @@
 """Deterministic evidence-based findings. Findings are not causal proof."""
 
-import math
-from collections.abc import Mapping
-from decimal import Decimal, localcontext
 from enum import Enum
 from typing import Any
 
-from tracefi.hashing import snapshot, state_hash
-from tracefi.models import ModelAdapter, decision_state, observed_decision
-from tracefi.models.deterministic import finite_number
-from tracefi.security import Redactor, contains_redacted
+from tracefi.hashing import finite_number
+from tracefi.policy import check_policy, valid_proposal
+from tracefi.schema import (
+    EXECUTION_STATUSES,
+    OBSERVATIONS,
+    STATE_FIELDS,
+    changed_paths,
+    clean,
+    execution_failed,
+)
 
 
 class FailureType(str, Enum):
+    """Failure classes, declared in inspection priority order."""
+
+    POLICY_FAILURE = "POLICY_FAILURE"
     DATA_FAILURE = "DATA_FAILURE"
     RETRIEVAL_FAILURE = "RETRIEVAL_FAILURE"
     REASONING_FAILURE = "REASONING_FAILURE"
-    POLICY_FAILURE = "POLICY_FAILURE"
     SIMULATION_FAILURE = "SIMULATION_FAILURE"
     EXECUTION_FAILURE = "EXECUTION_FAILURE"
-    MARKET_OUTCOME = "MARKET_OUTCOME"
     ADVERSARIAL_INPUT = "ADVERSARIAL_INPUT"
+    MARKET_OUTCOME = "MARKET_OUTCOME"
 
 
-def valid_proposal(proposal: Any) -> bool:
-    if not isinstance(proposal, Mapping):
-        return False
-    action, amount, asset = proposal.get("action"), proposal.get("amount"), proposal.get("asset")
-    return (
-        action in ("HOLD", "SUPPLY", "WITHDRAW")
-        and isinstance(asset, str)
-        and bool(asset)
-        and finite_number(amount)
-        and amount >= 0
-        and (action != "HOLD" or amount == 0)
-    )
-
-
-def _exceeds_limit(amount: Any, existing: Any, limit: Any, denominator: Any) -> bool:
-    # Covers all finite-float-range integers and subnormal decimal representations.
-    with localcontext() as arithmetic:
-        arithmetic.prec = 1024
-        return Decimal(str(existing)) + Decimal(str(amount)) > Decimal(str(limit)) * Decimal(
-            str(denominator)
-        )
-
-
-def _portfolio_value_fits(positions: dict[str, Any], balance: Any, total: Any) -> bool:
-    with localcontext() as arithmetic:
-        arithmetic.prec = 1024
-        return sum((Decimal(str(value)) for value in positions.values()), Decimal(0)) + Decimal(
-            str(balance)
-        ) <= Decimal(str(total))
-
-
-def check_policy(proposal: Any, portfolio: Any, config: Any) -> dict[str, Any]:
-    reasons: list[str] = []
-    valid = valid_proposal(proposal)
-    if not valid:
-        reasons.append("INVALID_PROPOSAL")
-    proposal = proposal if isinstance(proposal, Mapping) else {}
-    portfolio_ok, config_ok = isinstance(portfolio, Mapping), isinstance(config, Mapping)
-    portfolio = portfolio if portfolio_ok else {}
-    config = config if config_ok else {}
-    asset = proposal.get("asset", "USDC")
-    balance = portfolio.get(asset, 0) if isinstance(asset, str) else None
-    limit = config.get("max_exposure", 0.35)
-    inputs_valid = (
-        portfolio_ok
-        and config_ok
-        and finite_number(balance)
-        and balance >= 0
-        and finite_number(limit)
-        and 0 <= limit <= 1
-    )
-    if not inputs_valid:
-        reasons.append("INVALID_POLICY_INPUT")
-    amount = proposal.get("amount")
-    exposure = None
-    basis = config.get("exposure_basis", "asset_balance")
-    if basis not in ("asset_balance", "total_portfolio"):
-        reasons.append("INVALID_POLICY_INPUT")
-        inputs_valid = False
-    denominator, existing = balance, 0
-    if basis == "total_portfolio":
-        denominator = portfolio.get("total_value_usdc")
-        positions = portfolio.get("positions")
-        positions_ok = isinstance(positions, dict) and all(
-            isinstance(key, str) and finite_number(value) and value >= 0
-            for key, value in positions.items()
-        )
-        protocol = proposal.get("protocol")
-        positions_total = sum(positions.values()) if positions_ok else None
-        inputs_valid = bool(
-            inputs_valid
-            and asset == "USDC"
-            and finite_number(denominator)
-            and denominator > 0
-            and positions_ok
-            and finite_number(positions_total)
-            and finite_number(balance)
-            and _portfolio_value_fits(positions, balance, denominator)
-            and (
-                proposal.get("action") == "HOLD"
-                or isinstance(protocol, str)
-                and protocol in positions
-            )
-        )
-        if not inputs_valid and "INVALID_POLICY_INPUT" not in reasons:
-            reasons.append("INVALID_POLICY_INPUT")
-        if positions_ok and isinstance(protocol, str):
-            existing = positions.get(protocol, 0)
-    if (
-        valid
-        and inputs_valid
-        and finite_number(denominator)
-        and denominator > 0
-        and finite_number(amount)
-    ):
-        proposed = (
-            existing + amount if proposal["action"] == "SUPPLY" else max(0, existing - amount)
-        )
-        ratio = proposed / denominator if basis == "total_portfolio" else amount / denominator
-        numerator = proposed if basis == "total_portfolio" else amount
-        if math.isfinite(ratio) and (ratio != 0 or numerator == 0):
-            exposure = ratio
-    if valid and proposal["action"] == "SUPPLY":
-        exceeds = (
-            inputs_valid
-            and finite_number(denominator)
-            and _exceeds_limit(amount, existing, limit, denominator)
-        )
-        if not inputs_valid or exposure is None or exceeds:
-            reasons.append("MAX_EXPOSURE")
-        if inputs_valid and _exceeds_limit(amount, 0, 1, balance):
-            reasons.append("INSUFFICIENT_BALANCE")
-    if (
-        valid
-        and proposal["action"] == "WITHDRAW"
-        and basis == "total_portfolio"
-        and inputs_valid
-        and _exceeds_limit(amount, 0, 1, existing)
-    ):
-        reasons.append("INSUFFICIENT_POSITION")
-    return {
-        "approved": not reasons,
-        "should_reject": bool(reasons),
-        "reasons": reasons,
-        "requested_exposure": exposure,
-        "maximum_exposure": limit if finite_number(limit) else None,
-    }
+_PRIORITY = {kind.value: index for index, kind in enumerate(FailureType)}
 
 
 def analyze(trace: dict[str, Any]) -> dict[str, Any]:
-    trace = snapshot(Redactor(trace.get("redaction_keys", ()))(trace))
+    trace = clean(trace, trace)
     input_errors: list[str] = []
 
     def section(key: str) -> dict[str, Any]:
@@ -240,10 +119,10 @@ def analyze(trace: dict[str, Any]) -> dict[str, Any]:
     else:
         input_errors.append("retrieval: feature lists must contain strings")
     status = execution.get("status")
-    if status is not None and status not in ("success", "blocked", "failed", "reverted"):
+    if status is not None and status not in EXECUTION_STATUSES:
         input_errors.append("execution.status: unsupported value")
     success = execution.get("success") is True or status == "success"
-    reverted = status in ("reverted", "failed") or execution.get("success") is False
+    reverted = execution_failed(execution)
     if success and (reverted or status == "blocked"):
         input_errors.append("execution: conflicting success/status evidence")
         success = False
@@ -341,22 +220,7 @@ def analyze(trace: dict[str, Any]) -> dict[str, Any]:
             "likely",
             "outcome.pnl",
         )
-    order = {
-        kind.value: index
-        for index, kind in enumerate(
-            (
-                FailureType.POLICY_FAILURE,
-                FailureType.DATA_FAILURE,
-                FailureType.RETRIEVAL_FAILURE,
-                FailureType.REASONING_FAILURE,
-                FailureType.SIMULATION_FAILURE,
-                FailureType.EXECUTION_FAILURE,
-                FailureType.ADVERSARIAL_INPUT,
-                FailureType.MARKET_OUTCOME,
-            )
-        )
-    }
-    findings.sort(key=lambda finding: order[finding["type"]])
+    findings.sort(key=lambda finding: _PRIORITY[finding["type"]])
     return {
         "trace_id": trace.get("trace_id", "unknown"),
         "decision": proposal,
@@ -372,68 +236,14 @@ def analyze(trace: dict[str, Any]) -> dict[str, Any]:
             else "recorded"
             if trace[key]
             else "empty"
-            for key in (
-                "context",
-                "retrieval",
-                "proposal",
-                "policy",
-                "simulation",
-                "execution",
-                "outcome",
-            )
+            for key in OBSERVATIONS
         },
         "limitations": "Rule matches identify evidence and inconsistencies, not financial correctness or causal proof.",
     }
 
 
-def replay(trace: dict[str, Any], adapter: ModelAdapter) -> dict[str, Any]:
-    keys = trace.get("redaction_keys", ())
-    original = snapshot(Redactor(keys)(trace.get("proposal")))
-    if not isinstance(original, dict):
-        raise ValueError("Trace has no recorded decision object")
-    state = decision_state(trace)
-    if contains_redacted(state):
-        raise ValueError("Replay state contains redacted values; exact reproduction is unavailable")
-    result = observed_decision(adapter, state, keys)
-    equal = state_hash(original) == state_hash(result)
-    return {
-        "trace_id": trace["trace_id"],
-        "agent": snapshot(Redactor(keys)(trace["agent"])),
-        "original": original,
-        "replayed": result,
-        "equal": equal,
-        "interpretation": "One replay matched" if equal else "Decision divergence",
-        "limitations": "A matching replay is not proof of determinism; code, dependencies and model must also match.",
-    }
-
-
-def changed_paths(a: Any, b: Any, prefix: str = "") -> list[dict[str, Any]]:
-    if isinstance(a, dict) and isinstance(b, dict):
-        changes = []
-        for key in sorted(a.keys() | b.keys()):
-            path = f"{prefix}.{key}" if prefix else key
-            if key not in a or key not in b:
-                changes.append(
-                    {
-                        "path": path,
-                        "before": a.get(key),
-                        "after": b.get(key),
-                        "before_present": key in a,
-                        "after_present": key in b,
-                    }
-                )
-            else:
-                changes.extend(changed_paths(a[key], b[key], path))
-        return changes
-    if state_hash(a) != state_hash(b):
-        return [
-            {"path": prefix, "before": a, "after": b, "before_present": True, "after_present": True}
-        ]
-    return []
-
-
 def diff(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
-    fields = ("agent", "context", "portfolio", "agent_configuration", "policy_configuration")
+    fields = ("agent", *STATE_FIELDS)
     return {
         "trace_a": a["trace_id"],
         "trace_b": b["trace_id"],

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tracefi"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Decision provenance, failure attribution and counterfactual debugging for financial agents"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,6 +21,9 @@ Issues = "https://github.com/Dparini/TraceFi/issues"
 
 [project.scripts]
 tracefi = "tracefi.cli:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "tracefi.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["tracefi*"]
@@ -56,8 +59,8 @@ addopts = "--strict-config --strict-markers"
 
 [tool.mutmut]
 source_paths = ["tracefi"]
-only_mutate = ["tracefi/hashing/*.py", "tracefi/security/*.py", "tracefi/counterfactual/*.py", "tracefi/analysis/*.py", "tracefi/storage/*.py"]
-pytest_add_cli_args = ["-q", "--ignore=tests/test_dashboard.py", "-k", "not attribution_stress_grid"]
+only_mutate = ["tracefi/hashing/*.py", "tracefi/security/*.py", "tracefi/schema/*.py", "tracefi/policy/*.py", "tracefi/counterfactual/*.py", "tracefi/analysis/*.py", "tracefi/storage/*.py"]
+pytest_add_cli_args = ["-q", "--ignore=tests/test_dashboard.py"]
 pytest_add_cli_args_test_selection = ["tests"]
 process_isolation = "forkserver"
 on_dependency_change = "rerun"

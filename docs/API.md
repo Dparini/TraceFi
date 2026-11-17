@@ -106,13 +106,14 @@ the recorded agent version alone cannot identify Python source or model weights.
 
 `GET /api/traces/{id}/counterfactual?adapter=deterministic&feature=context.liquidity&value=10000000`
 returns a one-variable proposal experiment. The adapter must reproduce the
-original recorded proposal. Supported inputs are `context.apy`,
-`context.liquidity`, `context.price` and `context.oracle_age_seconds`; the feature
-must already be recorded and its alternative value must be a finite number.
-Lending experiments also allow fixed `context.markets.protocol_a|protocol_b`
-fields: `supply_apy`, `liquidity_usdc`, `liquidity_trend_24h`,
-`oracle_age_seconds` and `transaction_cost_usdc`. A missing trend leaf can be
-added to restore an omitted signal; its parent market must exist.
+original recorded proposal. The feature must be an input the selected adapter
+reads, and its alternative value must be a finite number. `deterministic` reads
+`context.apy`, `context.liquidity`, `context.price` and
+`context.oracle_age_seconds`. The lending adapters read, for every recorded market
+in `context.markets`, `supply_apy`, `liquidity_usdc`, `liquidity_trend_24h`,
+`oracle_age_seconds` and `transaction_cost_usdc`. Inputs must already be recorded,
+except that a missing trend leaf can be added to restore an omitted signal; its
+parent market must exist.
 The HTTP API accepts only `deterministic`, `lending-v1` and `lending-v2`. Other models use
 explicit trusted CLI adapters. Invalid or unreproducible experiments return 422.
 No policy, execution, PnL or original trace is changed.

@@ -15,32 +15,6 @@ DEFAULT_KEYS = {
     "access_token",
     "refresh_token",
 }
-# These keys carry trace structure or integrity metadata, rather than caller data.
-_RESERVED_KEYS = {
-    "trace_id",
-    "id",
-    "parent_id",
-    "schema_version",
-    "canonical_version",
-    "redaction_keys",
-    "context",
-    "portfolio",
-    "agent_configuration",
-    "policy_configuration",
-    "agent",
-    "spans",
-    "context_hash",
-    "portfolio_hash",
-    "policy_hash",
-    "agent_config_hash",
-    "state_hash",
-    "events",
-    "payload",
-    "start",
-    "end",
-    "timestamp",
-    "duration_ns",
-}
 
 
 class Secret:
@@ -67,10 +41,10 @@ class Redactor:
         extra = set(keys)
         if not all(isinstance(key, str) and key for key in extra):
             raise TypeError("Redaction field names must be nonempty strings")
-        normalized = {_key(key) for key in extra}
-        if normalized & {_key(key) for key in _RESERVED_KEYS}:
-            raise ValueError("Redaction cannot target trace structural fields")
-        self.keys = {_key(key) for key in DEFAULT_KEYS} | normalized
+        self.keys = {_key(key) for key in DEFAULT_KEYS | extra}
+
+    def targets(self, key: str) -> bool:
+        return _key(key) in self.keys
 
     def __call__(self, value: Any) -> Any:
         ancestors: set[int] = set()
@@ -92,7 +66,7 @@ class Redactor:
                     if isinstance(item, Mapping):
                         return {
                             key: REDACTED
-                            if isinstance(key, str) and _key(key) in self.keys
+                            if isinstance(key, str) and self.targets(key)
                             else visit(part, depth + 1)
                             for key, part in item.items()
                         }

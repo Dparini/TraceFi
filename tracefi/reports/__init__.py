@@ -1,3 +1,5 @@
+"""Terminal and HTML reports; every report redacts and escapes untrusted trace text."""
+
 from __future__ import annotations
 
 import html
@@ -5,12 +7,11 @@ import json
 from typing import Any
 
 from tracefi.analysis import analyze
-from tracefi.hashing import snapshot
-from tracefi.security import Redactor
+from tracefi.schema import clean
 
 
 def postmortem(trace: dict[str, Any]) -> str:
-    trace = snapshot(Redactor(trace.get("redaction_keys", ()))(trace))
+    trace = clean(trace, trace)
     report = analyze(trace)
     lines = [
         "TRACEFI POST-MORTEM",
@@ -39,7 +40,7 @@ def postmortem(trace: dict[str, Any]) -> str:
 
 
 def export_html(trace: dict[str, Any]) -> str:
-    trace = snapshot(Redactor(trace.get("redaction_keys", ()))(trace))
+    trace = clean(trace, trace)
     rows = "".join(
         "<tr>"
         + "".join(
@@ -68,7 +69,6 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:12px;bor
 
 
 def terminal_safe(value: str) -> str:
-    """Escape terminal control characters while preserving readable Unicode."""
     return "".join(
         f"\\u{ord(char):04x}" if ord(char) < 32 and char != "\n" or 127 <= ord(char) < 160 else char
         for char in value
@@ -167,21 +167,19 @@ def why_change_report(report: dict[str, Any]) -> str:
     return terminal_safe("\n".join(lines))
 
 
+def _metric_text(number: Any) -> str:
+    if number is None:
+        return "unavailable"
+    return f"{number:.3f}" if isinstance(number, float) else str(number)
+
+
 def regression_report(report: dict[str, Any]) -> str:
     lines = ["AGENT REGRESSION REPORT", "", f"{'Metric':32} {'Baseline':>12} {'Candidate':>12}"]
     for key, value in report["baseline"]["metrics"].items():
         other = report["candidate"]["metrics"][key]
-
-        def fmt(number: Any) -> str:
-            return (
-                "unavailable"
-                if number is None
-                else f"{number:.3f}"
-                if isinstance(number, float)
-                else str(number)
-            )
-
-        lines.append(f"{key.replace('_', ' '):32} {fmt(value):>12} {fmt(other):>12}")
+        lines.append(
+            f"{key.replace('_', ' '):32} {_metric_text(value):>12} {_metric_text(other):>12}"
+        )
     lines.extend(["", "REGRESSIONS"])
     for regression in report["regressions"]:
         lines.append(

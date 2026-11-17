@@ -1,7 +1,6 @@
 from tracefi import TraceFi
-from tracefi.analysis import check_policy
-from tracefi.models import decision_state
 from tracefi.models.deterministic import DeterministicAgent
+from tracefi.policy import check_policy
 
 if __name__ == "__main__":
     with TraceFi() as trace:
@@ -15,12 +14,14 @@ if __name__ == "__main__":
             t.capture_context(
                 {"apy": 0.067, "liquidity": 21000000, "price": 1, "oracle_age_seconds": 20}
             )
-            decision = DeterministicAgent().decide(decision_state(t.record))
+            decision = DeterministicAgent().decide(t.state())
             t.capture_decision(decision)
-            policy = check_policy(decision, t.record["portfolio"], t.record["policy_configuration"])
+            state = t.state()
+            policy = check_policy(decision, state["portfolio"], state["policy_configuration"])
             t.capture_policy(policy)
-            t.capture_simulation({"success": True, "mode": "synthetic"})
-            t.capture_execution(
-                {"status": "success" if policy["approved"] else "blocked", "mode": "synthetic"}
-            )
+            if policy["approved"]:
+                t.capture_simulation({"success": True, "mode": "synthetic"})
+                t.capture_execution({"status": "success", "mode": "synthetic"})
+            else:
+                t.capture_execution({"status": "blocked", "mode": "synthetic"})
         print(t.trace_id)

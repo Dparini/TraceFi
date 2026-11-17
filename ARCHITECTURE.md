@@ -98,7 +98,8 @@ and an untrusted browser extension remain outside its protection boundary.
 ## Extension points
 
 `ModelAdapter.decide(state)` isolates local deterministic and optional Ollama
-models. Trusted `module:factory` adapters can integrate other agents. Storage is
+models; built-in adapters, datasets and metrics models are named in
+`tracefi/registry.py`. Trusted `module:factory` adapters can integrate other agents. Storage is
 injected through `TraceFi(storage=...)`; compatible implementations provide
 `save`, `get`, `list` and `close`. OpenTelemetry mapping can be added without
 changing the decision-state contract. Schema migrations and cryptographic

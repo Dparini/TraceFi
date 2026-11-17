@@ -1,21 +1,27 @@
 from __future__ import annotations
 
-from types import TracebackType
-from typing import TYPE_CHECKING, Any, Literal, cast
-
-if TYPE_CHECKING:
-    from tracefi.sdk import TraceFi
 from collections.abc import Mapping
 from contextvars import ContextVar
-from datetime import datetime, timezone
 from time import perf_counter_ns
+from types import TracebackType
+from typing import Any, Literal, Protocol, cast
 from uuid import uuid4
 
-from tracefi.hashing import CANONICAL_VERSION, snapshot, state_hash
+from tracefi.hashing import now, snapshot
+from tracefi.schema import (
+    decision_state,
+    final_status,
+    finish,
+    new_event,
+    new_record,
+    new_span,
+    seal,
+)
+from tracefi.security import Redactor
 
 
-def now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+class TraceSink(Protocol):
+    def save(self, trace: dict[str, Any]) -> None: ...
 
 
 def identifier(prefix: str) -> str:
@@ -32,16 +38,7 @@ class Span:
         ):
             raise ValueError("Span name and kind must be nonempty strings")
         self.decision = decision
-        self.record: dict[str, Any] = {
-            "id": identifier("sp"),
-            "name": name,
-            "type": kind or name,
-            "parent_id": None,
-            "start": None,
-            "end": None,
-            "status": "pending",
-            "events": [],
-        }
+        self.record = new_span(identifier("sp"), name, kind or name)
 
     def __enter__(self) -> Span:
         if not self.decision.active:
@@ -56,14 +53,17 @@ class Span:
         self.decision.open_spans.add(self.record["id"])
         return self
 
+    def _open(self) -> bool:
+        return (
+            self.decision.active
+            and self.record["status"] == "pending"
+            and self.record["start"] is not None
+        )
+
     def log(self, payload: Any) -> None:
-        if (
-            not self.decision.active
-            or self.record["status"] != "pending"
-            or self.record["start"] is None
-        ):
+        if not self._open():
             raise RuntimeError("Cannot log to an inactive span")
-        self.record["events"].append({"timestamp": now(), "payload": self.decision.clean(payload)})
+        self.record["events"].append(new_event(self.decision.clean(payload)))
 
     def __exit__(
         self,
@@ -71,20 +71,17 @@ class Span:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> Literal[False]:
-        if (
-            not self.decision.active
-            or self.record["status"] != "pending"
-            or self.record["start"] is None
-        ):
+        if not self._open():
             raise RuntimeError("Cannot close an inactive span")
         if self.decision.parent.get() != self.record["id"]:
             raise RuntimeError("Nested spans must close in reverse order")
-        self.record["end"] = now()
-        self.record["duration_ns"] = perf_counter_ns() - self.started
-        self.record["status"] = "error" if exc_type else "success"
-        if exc_type:
+        finish(
+            self.record,
+            perf_counter_ns() - self.started,
+            "error" if exc_type else "success",
             # Exception strings frequently embed request headers and credentials.
-            self.record["error"] = {"type": exc_type.__name__}
+            exc_type.__name__ if exc_type else None,
+        )
         self.decision.parent.reset(self.token)
         self.decision.open_spans.remove(self.record["id"])
         return False
@@ -93,7 +90,8 @@ class Span:
 class DecisionTrace:
     def __init__(
         self,
-        owner: TraceFi,
+        sink: TraceSink,
+        redactor: Redactor,
         agent: str,
         version: str,
         model: Any = None,
@@ -106,41 +104,38 @@ class DecisionTrace:
         for state in (portfolio, agent_config, policy_config):
             if state is not None and not isinstance(state, Mapping):
                 raise TypeError("Decision state components must be JSON objects")
-        self.owner = owner
+        self.sink = sink
+        self.redactor = redactor
         self.open_spans: set[str] = set()
         self.parent: ContextVar[str | None] = ContextVar(
             "tracefi_parent_" + uuid4().hex, default=None
         )
         self.active = False
         self.finished = False
-        self.record: dict[str, Any] = {
-            "schema_version": 1,
-            "canonical_version": CANONICAL_VERSION,
-            "redaction_keys": sorted(owner.redactor.keys),
-            "trace_id": identifier("tr"),
-            "timestamp": now(),
-            "end": None,
-            "agent": {"name": agent, "version": version, "model": model},
-            "context": {},
-            "portfolio": self.clean(portfolio or {}),
-            "agent_configuration": self.clean(agent_config or {}),
-            "policy_configuration": self.clean(policy_config or {}),
-            "retrieval": {},
-            "proposal": None,
-            "policy": None,
-            "simulation": None,
-            "execution": None,
-            "outcome": None,
-            "spans": [],
-            "status": "pending",
-        }
+        self.record = new_record(
+            trace_id=identifier("tr"),
+            timestamp=now(),
+            agent=agent,
+            version=version,
+            model=model,
+            redaction_keys=sorted(redactor.keys),
+            state={
+                "portfolio": self.clean(portfolio or {}),
+                "agent_configuration": self.clean(agent_config or {}),
+                "policy_configuration": self.clean(policy_config or {}),
+            },
+        )
 
     @property
     def trace_id(self) -> str:
         return cast(str, self.record["trace_id"])
 
     def clean(self, value: Any) -> Any:
-        return snapshot(self.owner.redactor(value))
+        return snapshot(self.redactor(value))
+
+    def state(self) -> dict[str, Any]:
+        """An independent copy of the decision state captured so far, as adapters receive it."""
+        return decision_state(self.record)
 
     def __enter__(self) -> DecisionTrace:
         if self.active or self.finished:
@@ -199,43 +194,15 @@ class DecisionTrace:
         try:
             if self.open_spans:
                 raise RuntimeError("Cannot finalize a decision with open spans")
-            self.record["end"] = now()
-            self.record["duration_ns"] = perf_counter_ns() - self.started
-            execution = self.record["execution"] or {}
-            policy = self.record["policy"] or {}
-            self.record["status"] = (
-                "error"
-                if exc_type
-                else "failed"
-                if execution.get("status") in ("failed", "reverted")
-                or execution.get("success") is False
-                else "rejected"
-                if policy.get("approved") is False
-                else "success"
+            finish(
+                self.record,
+                perf_counter_ns() - self.started,
+                final_status(self.record, raised=exc_type is not None),
+                exc_type.__name__ if exc_type else None,
             )
-            if exc_type:
-                self.record["error"] = {"type": exc_type.__name__}
-            # Redact first: all hashes must cover exactly the state that is stored.
             self.record = self.clean(self.record)
-            for field, hashed in (
-                ("context", "context_hash"),
-                ("portfolio", "portfolio_hash"),
-                ("policy_configuration", "policy_hash"),
-                ("agent_configuration", "agent_config_hash"),
-            ):
-                self.record[hashed] = state_hash(self.record[field])
-            self.record["state_hash"] = state_hash(
-                {
-                    key: self.record[key]
-                    for key in (
-                        "context",
-                        "portfolio",
-                        "agent_configuration",
-                        "policy_configuration",
-                    )
-                }
-            )
-            self.owner.storage.save(self.record)
+            seal(self.record)
+            self.sink.save(self.record)
         finally:
             self.active = False
             self.finished = True

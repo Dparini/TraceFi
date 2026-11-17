@@ -5,20 +5,10 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from tracefi.hashing import (
-    SUPPORTED_CANONICAL_VERSIONS,
-    canonicalize,
-    load_json,
-    snapshot,
-    state_hash,
-)
+from tracefi.hashing import canonicalize, load_json, snapshot, state_hash
+from tracefi.schema import STATE_FIELDS, verify_seal
 
-_STATE_HASHES = (
-    ("context", "context_hash"),
-    ("portfolio", "portfolio_hash"),
-    ("policy_configuration", "policy_hash"),
-    ("agent_configuration", "agent_config_hash"),
-)
+DEFAULT_DB = ".tracefi/traces.sqlite3"
 
 
 class IntegrityError(ValueError):
@@ -26,9 +16,7 @@ class IntegrityError(ValueError):
 
 
 class SQLiteStorage:
-    def __init__(
-        self, path: str | Path = ".tracefi/traces.sqlite3", *, read_only: bool = False
-    ) -> None:
+    def __init__(self, path: str | Path = DEFAULT_DB, *, read_only: bool = False) -> None:
         self.path = str(path)
         if self.path != ":memory:" and Path(path).is_symlink():
             raise ValueError("Database symlinks are unsupported")
@@ -95,7 +83,7 @@ class SQLiteStorage:
                         canonicalize(span).decode(),
                     ),
                 )
-            for kind, _ in _STATE_HASHES:
+            for kind in STATE_FIELDS:
                 self.connection.execute(
                     "INSERT INTO artifacts VALUES (?,?,?,?,?)",
                     (
@@ -130,12 +118,7 @@ class SQLiteStorage:
             raise IntegrityError("Trace integrity check failed") from None
 
     def _verify(self, trace: dict[str, Any], row: tuple[Any, ...]) -> None:
-        if (
-            trace.get("schema_version") != 1
-            or isinstance(trace.get("schema_version"), bool)
-            or trace.get("canonical_version") not in SUPPORTED_CANONICAL_VERSIONS
-        ):
-            raise IntegrityError("Unsupported trace format")
+        verify_seal(trace)
         if trace["trace_id"] != row[0] or state_hash(trace) != row[2]:
             raise IntegrityError("Trace payload or identifier mismatch")
         metadata = (
@@ -147,12 +130,6 @@ class SQLiteStorage:
         )
         if tuple(row[3:]) != metadata:
             raise IntegrityError("Indexed trace metadata mismatch")
-        for field, hashed in _STATE_HASHES:
-            if not isinstance(trace[field], dict) or state_hash(trace[field]) != trace[hashed]:
-                raise IntegrityError("Snapshot mismatch")
-        state = {key: trace[key] for key, _ in _STATE_HASHES}
-        if state_hash(state) != trace["state_hash"]:
-            raise IntegrityError("Combined state mismatch")
         spans = self.connection.execute(
             "SELECT id,parent_id,type,start,end,payload FROM spans WHERE trace_id=?",
             (trace["trace_id"],),
@@ -181,10 +158,10 @@ class SQLiteStorage:
         artifacts = self.connection.execute(
             "SELECT id,type,hash,payload FROM artifacts WHERE trace_id=?", (trace["trace_id"],)
         ).fetchall()
-        if len(artifacts) != 4:
+        if len(artifacts) != len(STATE_FIELDS):
             raise IntegrityError("Missing snapshot artifacts")
         for artifact_id, kind, digest, payload in artifacts:
-            if kind not in state or artifact_id != trace["trace_id"] + ":" + kind:
+            if kind not in STATE_FIELDS or artifact_id != trace["trace_id"] + ":" + kind:
                 raise IntegrityError("Artifact identifier mismatch")
             value = load_json(payload)
             if state_hash(value) != digest or digest != state_hash(trace[kind]):

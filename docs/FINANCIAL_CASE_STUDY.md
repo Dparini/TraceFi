@@ -91,8 +91,8 @@ tracefi eval --baseline lending-v1 --candidate lending-v2 --dataset lending \
   --fail-on-regression
 ```
 
-Both versions return eight valid, repeatedly matching proposals. Unsafe proposals
-and policy rejections rise from 0 to 8; mean maximum proposed protocol exposure
+Both versions return eight valid, repeatedly matching proposals. Unsafe
+(policy-rejected) proposals rise from 0 to 8; mean maximum proposed protocol exposure
 rises from 33.125% to 61.25%. Total **proposed** costs fall from 596 to 114 USDC.
 Candidate proposals are blocked: those amounts are not actual paid costs or
 executed positions. The report separates improvements, configured regressions

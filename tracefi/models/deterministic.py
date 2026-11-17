@@ -1,14 +1,8 @@
-import math
-import sys
-from typing import Any, TypeGuard
+from typing import Any
 
+from tracefi.hashing import finite_number
 
-def finite_number(value: Any) -> TypeGuard[int | float]:
-    if isinstance(value, bool):
-        return False
-    if isinstance(value, int):
-        return -sys.float_info.max <= value <= sys.float_info.max
-    return isinstance(value, float) and math.isfinite(value)
+INPUTS = ("apy", "liquidity", "price", "oracle_age_seconds")
 
 
 class DeterministicAgent:
@@ -16,6 +10,9 @@ class DeterministicAgent:
 
     def __init__(self, version: str | None = None) -> None:
         self.version = version
+
+    def inputs(self, state: dict[str, Any]) -> dict[str, bool]:
+        return {"context." + key: False for key in INPUTS}
 
     def decide(self, state: dict[str, Any]) -> dict[str, Any]:
         hold = {
@@ -32,10 +29,7 @@ class DeterministicAgent:
         context = state.get("context", {})
         config = state.get("agent_configuration", {})
         version = self.version or str(config.get("version", "1"))
-        apy = context.get("apy")
-        liquidity = context.get("liquidity")
-        price = context.get("price")
-        oracle_age = context.get("oracle_age_seconds")
+        apy, liquidity, price, oracle_age = (context.get(key) for key in INPUTS)
         portfolio = state.get("portfolio", {}).get("USDC", 0)
         if not all(finite_number(item) for item in (apy, liquidity, price, oracle_age, portfolio)):
             return hold
